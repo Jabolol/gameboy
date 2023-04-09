@@ -72,6 +72,18 @@ static bool load(CartridgeClass *self, char *path)
     return true;
 }
 
+static uint8_t read(CartridgeClass *self, uint16_t address)
+{
+    return self->context->rom_data[address];
+}
+
+static void write(CartridgeClass __attribute__((unused)) * self,
+    uint16_t __attribute__((unused)) address,
+    uint8_t __attribute__((unused)) value)
+{
+    HANDLE_ERROR("not implemented");
+}
+
 const CartridgeClass init_cartridge = {
     {
         ._size = sizeof(CartridgeClass),
@@ -185,6 +197,8 @@ const CartridgeClass init_cartridge = {
     .get_license = get_license,
     .get_rom_type = get_rom_type,
     .load = load,
+    .read = read,
+    .write = write,
 };
 
 const class_t *Cartridge = (const class_t *) &init_cartridge;
