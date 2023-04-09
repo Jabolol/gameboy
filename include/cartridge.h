@@ -3,6 +3,7 @@
 
 #ifndef __CARTRIDGE
     #define __CARTRIDGE
+
 typedef struct cartridge_aux CartridgeClass;
 
 typedef struct cartridge_aux {
@@ -15,6 +16,8 @@ typedef struct cartridge_aux {
     const char *(*get_license)(CartridgeClass *);
     const char *(*get_rom_type)(CartridgeClass *);
     bool (*load)(CartridgeClass *, char *);
+    uint8_t (*read)(CartridgeClass *, uint16_t);
+    void (*write)(CartridgeClass *, uint16_t, uint8_t);
 } CartridgeClass;
 
 extern const class_t *Cartridge;
