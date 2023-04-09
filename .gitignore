@@ -1,0 +1,5 @@
+*.so
+*.d
+*.o
+gameboy
+ROMs/
