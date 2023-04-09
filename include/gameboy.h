@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "SDL2/SDL.h"
+#include "bus.h"
 #include "cartridge.h"
 #include "common.h"
 #include "cpu.h"
@@ -17,9 +18,12 @@ typedef struct gameboy_aux {
     class_t metadata;
     CartridgeClass *cartridge;
     CPUClass *cpu;
+    BusClass *bus;
+    InstructionsClass *instructions;
     emulator_context_t *context;
     /* Methods */
-    int (*run)(GameboyClass *, int, char **);
+    int32_t (*run)(GameboyClass *, int32_t, char **);
+    void (*cycles)(GameboyClass *, int32_t);
 } GameboyClass;
 
 extern const class_t *Gameboy;
