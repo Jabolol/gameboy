@@ -29,6 +29,16 @@
         }
     #define BETWEEN(a, b, c) ((a >= b) && (a <= c))
     #define UNUSED           __attribute__((unused))
+    #define ROM_RANGE        0 ... 0x7FFF
+    #define CHAR_RANGE       0x8000 ... 0x9FFF
+    #define CART_RAM_RANGE   0xA000 ... 0xBFFF
+    #define WRAM_RANGE       0xC000 ... 0xDFFF
+    #define ECHO_RANGE       0xE000 ... 0xFDFF
+    #define OAM_RANGE        0xFE00 ... 0xFE9F
+    #define RESERVED_RANGE   0xFEA0 ... 0xFEFF
+    #define IO_REGS_RANGE    0xFF00 ... 0xFF7F
+    #define HRAM_RANGE       0xFF80 ... 0xFFFE
+    #define CPU_ENABLE_REG   0xFFFF
 
 typedef struct {
     bool paused;
@@ -192,10 +202,16 @@ typedef struct {
     bool halted;
     bool stepping;
     bool int_master_enabled;
+    uint8_t ie_register;
 } cpu_context_t;
 
 typedef struct cpu_aux CPUClass;
 
 typedef void (*proc_fn)(CPUClass *);
+
+typedef struct {
+    uint8_t wram[0x2000];
+    uint8_t hram[0x80];
+} ram_context_t;
 
 #endif
