@@ -27,6 +27,8 @@ typedef struct cpu_aux {
     uint16_t (*reverse)(uint16_t);
     uint16_t (*read_register)(CPUClass *, register_type_t);
     void (*set_register)(CPUClass *, register_type_t, uint16_t);
+    void (*set_ie_register)(CPUClass *, uint8_t);
+    uint8_t (*get_ie_register)(CPUClass *);
 } CPUClass;
 
 extern const class_t *CPU;
