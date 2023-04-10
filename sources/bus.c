@@ -4,26 +4,46 @@ static void constructor(void *ptr, va_list *args)
 {
     BusClass *self = (BusClass *) ptr;
     self->cartridge = va_arg(*args, CartridgeClass *);
+    self->ram = va_arg(*args, RamClass *);
+    self->parent = va_arg(*args, GameboyClass *);
 }
 
 static uint8_t read(BusClass *self, uint16_t address)
 {
     switch (address) {
-        case 0 ... 0x7FFF: {
+        case ROM_RANGE: {
             return self->cartridge->read(self->cartridge, address);
         }
-        case 0x8000 ... 0x9FFF: HANDLE_ERROR("not implemented read");
-        case 0xA000 ... 0xBFFF: HANDLE_ERROR("not implemented read");
-        case 0xC000 ... 0xDFFF: HANDLE_ERROR("not implemented read");
-        case 0xE000 ... 0xFDFF: HANDLE_ERROR("not implemented read");
-        case 0xFE00 ... 0xFE9F: HANDLE_ERROR("not implemented read");
-        case 0xFEA0 ... 0xFEFF: HANDLE_ERROR("not implemented read");
-        case 0xFF00 ... 0xFF7F: HANDLE_ERROR("not implemented read");
-        case 0xFF80 ... 0xFFFE: HANDLE_ERROR("not implemented read");
-        case 0xFFFF: HANDLE_ERROR("not implemented read");
+        case CHAR_RANGE: {
+            HANDLE_ERROR("not implemented read at CHAR_RANGE");
+        }
+        case CART_RAM_RANGE: {
+            return self->cartridge->read(self->cartridge, address);
+        }
+        case WRAM_RANGE: {
+            return self->ram->wram_read(self->ram, address);
+        }
+        case ECHO_RANGE: {
+            return 0;
+        }
+        case OAM_RANGE: {
+            HANDLE_ERROR("not implemented read at OAM_RANGE");
+        }
+        case RESERVED_RANGE: {
+            return 0;
+        }
+        case IO_REGS_RANGE: {
+            HANDLE_ERROR("not implemented read at IO_REGS_RANGE");
+        }
+        case HRAM_RANGE: {
+            return self->ram->hram_read(self->ram, address);
+        }
+        case CPU_ENABLE_REG: {
+            return self->parent->cpu->get_ie_register(self->parent->cpu);
+        }
         default: {
             char buff[256];
-            sprintf(buff, "not implemented read %04X", address);
+            sprintf(buff, "out of bounds write %04X at UNKNOWN", address);
             HANDLE_ERROR(buff);
         }
     }
@@ -32,22 +52,44 @@ static uint8_t read(BusClass *self, uint16_t address)
 static void write(BusClass *self, uint16_t address, uint8_t value)
 {
     switch (address) {
-        case 0 ... 0x7FFF: {
+        case ROM_RANGE: {
             self->cartridge->write(self->cartridge, address, value);
             break;
         }
-        case 0x8000 ... 0x9FFF: HANDLE_ERROR("not implemented write");
-        case 0xA000 ... 0xBFFF: HANDLE_ERROR("not implemented write");
-        case 0xC000 ... 0xDFFF: HANDLE_ERROR("not implemented write");
-        case 0xE000 ... 0xFDFF: HANDLE_ERROR("not implemented write");
-        case 0xFE00 ... 0xFE9F: HANDLE_ERROR("not implemented write");
-        case 0xFEA0 ... 0xFEFF: HANDLE_ERROR("not implemented write");
-        case 0xFF00 ... 0xFF7F: HANDLE_ERROR("not implemented write");
-        case 0xFF80 ... 0xFFFE: HANDLE_ERROR("not implemented write");
-        case 0xFFFF: HANDLE_ERROR("not implemented write");
+        case CHAR_RANGE: {
+            HANDLE_ERROR("not implemented write at CHAR_RANGE");
+        }
+        case CART_RAM_RANGE: {
+            self->cartridge->write(self->cartridge, address, value);
+            break;
+        }
+        case WRAM_RANGE: {
+            self->ram->wram_write(self->ram, address, value);
+            break;
+        }
+        case ECHO_RANGE: {
+            break;
+        }
+        case OAM_RANGE: {
+            HANDLE_ERROR("not implemented write at OAM_RANGE");
+        }
+        case RESERVED_RANGE: {
+            break;
+        }
+        case IO_REGS_RANGE: {
+            HANDLE_ERROR("not implemented write at IO_REGS_RANGE");
+        }
+        case HRAM_RANGE: {
+            self->ram->hram_write(self->ram, address, value);
+            break;
+        }
+        case CPU_ENABLE_REG: {
+            self->parent->cpu->set_ie_register(self->parent->cpu, value);
+            break;
+        }
         default: {
             char buff[256];
-            sprintf(buff, "not implemented write %04X", address);
+            sprintf(buff, "not implemented write %04X at UNKNOWN", address);
             HANDLE_ERROR(buff);
         }
     }
