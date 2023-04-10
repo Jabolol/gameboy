@@ -1,6 +1,6 @@
 #include "../include/gameboy.h"
 
-static void constructor(void *ptr, va_list __attribute__((unused)) * args)
+static void constructor(void *ptr, va_list UNUSED *args)
 {
     CartridgeClass *self = (CartridgeClass *) ptr;
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
@@ -77,11 +77,12 @@ static uint8_t read(CartridgeClass *self, uint16_t address)
     return self->context->rom_data[address];
 }
 
-static void write(CartridgeClass __attribute__((unused)) * self,
-    uint16_t __attribute__((unused)) address,
-    uint8_t __attribute__((unused)) value)
+static void write(
+    CartridgeClass UNUSED *self, uint16_t UNUSED address, uint8_t UNUSED value)
 {
-    HANDLE_ERROR("not implemented");
+    char buff[256];
+    sprintf(buff, "not implemented %04X", address);
+    HANDLE_ERROR(buff);
 }
 
 const CartridgeClass init_cartridge = {
