@@ -13,6 +13,8 @@ typedef struct bus_aux {
     /* Methods */
     uint8_t (*read)(BusClass *, uint16_t);
     void (*write)(BusClass *, uint16_t, uint8_t);
+    uint16_t (*read16)(BusClass *, uint16_t);
+    void (*write16)(BusClass *, uint16_t, uint16_t);
 } BusClass;
 
 extern const class_t *Bus;
