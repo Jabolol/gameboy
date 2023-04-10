@@ -316,12 +316,17 @@ static bool step(CPUClass *self)
         uint16_t pc = self->context->registers.pc;
         self->fetch_instructions(self);
         self->fetch_data(self);
-        printf("%04X: %-7s (%02X %02X %02X) A: %02X B: %02X C: %02X\n", pc,
+        printf("%04X: %-7s (%02X %02X %02X) A: %02X BC: %02X%02X DE: %02X%02X "
+               "HL: %02X%02X\n",
+            pc,
             self->instructions->lookup(
                 self->instructions, self->context->inst->type),
             self->context->opcode, self->bus->read(self->bus, pc + 1),
             self->bus->read(self->bus, pc + 2), self->context->registers.a,
-            self->context->registers.b, self->context->registers.c);
+            self->context->registers.b, self->context->registers.c,
+            self->context->registers.d, self->context->registers.e,
+            self->context->registers.h, self->context->registers.l);
+
         if (self->context->inst == NULL) {
             char buff[256];
             sprintf(
@@ -331,6 +336,16 @@ static bool step(CPUClass *self)
         self->execute(self);
     }
     return true;
+}
+
+static void set_ie_register(CPUClass *self, uint8_t value)
+{
+    self->context->ie_register = value;
+}
+
+static uint8_t get_ie_register(CPUClass *self)
+{
+    return self->context->ie_register;
 }
 
 const CPUClass init_CPU = {
@@ -352,6 +367,8 @@ const CPUClass init_CPU = {
     .read_register = read_register,
     .check_condition = check_condition,
     .set_register = set_register,
+    .set_ie_register = set_ie_register,
+    .get_ie_register = get_ie_register,
 };
 
 const class_t *CPU = (const class_t *) &init_CPU;
