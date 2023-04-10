@@ -58,6 +58,18 @@ static void proc_ld(CPUClass *cpu)
         cpu, cpu->context->inst->register_1, cpu->context->fetched_data);
 }
 
+static void proc_ldh(CPUClass *cpu)
+{
+    if (cpu->context->inst->register_1 == RT_A) {
+        cpu->set_register(cpu, cpu->context->inst->register_1,
+            cpu->bus->read(cpu->bus, 0xFF00 | cpu->context->fetched_data));
+    } else {
+        cpu->bus->write(cpu->bus, 0xFF00 | cpu->context->fetched_data,
+            cpu->context->registers.a);
+    }
+    cpu->parent->cycles(cpu->parent, 1);
+}
+
 static void proc_xor(CPUClass *cpu)
 {
     cpu->context->registers.a ^= cpu->context->fetched_data & 0xFF;
@@ -180,8 +192,10 @@ const InstructionsClass init_instructions =
                 [0x7F] = {IN_LD, AM_R_R, RT_A, RT_A},
                 [0xAF] = {IN_XOR, AM_R, RT_A},
                 [0xC3] = {IN_JP, AM_D16},
+                [0xE0] = {IN_LDH, AM_A8_R, RT_NONE, RT_A},
                 [0xE2] = {IN_LD, AM_MR_R, RT_C, RT_A},
                 [0xEA] = {IN_LD, AM_A16_R, RT_NONE, RT_A},
+                [0xF0] = {IN_LDH, AM_R_A8, RT_A},
                 [0xF2] = {IN_LD, AM_R_MR, RT_A, RT_C},
                 [0xF3] = {IN_DI},
                 [0xFA] = {IN_LD, AM_R_A16, RT_A},
@@ -242,6 +256,7 @@ const InstructionsClass init_instructions =
                 [IN_NONE] = proc_none,
                 [IN_NOP] = proc_nop,
                 [IN_LD] = proc_ld,
+                [IN_LDH] = proc_ldh,
                 [IN_JP] = proc_jp,
                 [IN_DI] = proc_di,
                 [IN_XOR] = proc_xor,
