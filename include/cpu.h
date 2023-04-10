@@ -6,12 +6,14 @@
 #ifndef __CPU
     #define __CPU
 
+typedef struct gameboy_aux GameboyClass;
 typedef struct cpu_aux CPUClass;
 
 typedef struct cpu_aux {
     /* Properties */
     class_t metadata;
     cpu_context_t *context;
+    GameboyClass *parent;
     BusClass *bus;
     InstructionsClass *instructions;
     /* Methods */
@@ -24,6 +26,7 @@ typedef struct cpu_aux {
     bool (*check_condition)(CPUClass *);
     uint16_t (*reverse)(uint16_t);
     uint16_t (*read_register)(CPUClass *, register_type_t);
+    void (*set_register)(CPUClass *, register_type_t, uint16_t);
 } CPUClass;
 
 extern const class_t *CPU;
