@@ -4,8 +4,9 @@ static void constructor(void *ptr, va_list UNUSED *args)
 {
     GameboyClass *self = (GameboyClass *) ptr;
     self->cartridge = new_class(Cartridge);
-    self->bus = new_class(Bus, self->cartridge);
+    self->ram = new_class(Ram);
     self->instructions = new_class(Instructions);
+    self->bus = new_class(Bus, self->cartridge, self->ram, self);
     self->cpu = new_class(CPU, self->bus, self->instructions, self);
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
         HANDLE_ERROR("failed memory allocation");
@@ -19,6 +20,7 @@ static void destructor(void *ptr)
     destroy_class(self->cpu);
     destroy_class(self->bus);
     destroy_class(self->instructions);
+    destroy_class(self->ram);
     free(self->context);
 }
 
