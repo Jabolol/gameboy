@@ -1,12 +1,12 @@
 #include "../include/gameboy.h"
 
-static void constructor(void *ptr, va_list __attribute__((unused)) * args)
+static void constructor(void *ptr, va_list UNUSED *args)
 {
     GameboyClass *self = (GameboyClass *) ptr;
     self->cartridge = new_class(Cartridge);
     self->bus = new_class(Bus, self->cartridge);
     self->instructions = new_class(Instructions);
-    self->cpu = new_class(CPU, self->bus, self->instructions);
+    self->cpu = new_class(CPU, self->bus, self->instructions, self);
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
         HANDLE_ERROR("failed memory allocation");
     }
@@ -57,6 +57,10 @@ static int run(GameboyClass *self, int argc, char **argv)
     return 0;
 }
 
+static void cycles(GameboyClass UNUSED *self, int32_t UNUSED count)
+{
+}
+
 const GameboyClass init_gameboy = {
     {
         ._size = sizeof(GameboyClass),
@@ -67,6 +71,7 @@ const GameboyClass init_gameboy = {
     .cartridge = NULL,
     .cpu = NULL,
     .run = run,
+    .cycles = cycles,
 };
 
 const class_t *Gameboy = (const class_t *) &init_gameboy;
