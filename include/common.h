@@ -5,19 +5,19 @@
     #define ANSI_COLOR_RED    "\x1b[31m"
     #define ANSI_COLOR_YELLOW "\x1b[33m"
     #define ANSI_COLOR_RESET  "\x1b[0m"
-    #define HANDLE_ERROR(e)                                                   \
-        do {                                                                  \
-            fprintf(stderr,                                                   \
-                ANSI_COLOR_RED "Error: %s: %s:%d %s()\n" ANSI_COLOR_RESET, e, \
-                __FILE__, __LINE__, __func__);                                \
-            exit(EXIT_FAILURE);                                               \
+    #define HANDLE_ERROR(e)                                                 \
+        do {                                                                \
+            fprintf(stderr,                                                 \
+                ANSI_COLOR_RED "Error: %s:%d %s() - %s\n" ANSI_COLOR_RESET, \
+                __FILE__, __LINE__, __func__, e);                           \
+            exit(EXIT_FAILURE);                                             \
         } while (0)
-    #define NOT_IMPLEMENTED()                                                \
-        do {                                                                 \
-            fprintf(stderr,                                                  \
-                ANSI_COLOR_YELLOW                                            \
-                "Error: %s:%d %s() - not implemented" ANSI_COLOR_RESET "\n", \
-                __FILE__, __LINE__, __func__);                               \
+    #define NOT_IMPLEMENTED()                                               \
+        do {                                                                \
+            fprintf(stderr,                                                 \
+                ANSI_COLOR_YELLOW                                           \
+                "Warn: %s:%d %s() - not implemented" ANSI_COLOR_RESET "\n", \
+                __FILE__, __LINE__, __func__);                              \
         } while (0)
     #define BIT(a, n) ((a & (1 << n)) ? 1 : 0)
     #define BIT_SET(a, n, on)   \
@@ -28,6 +28,7 @@
                 a &= ~(1 << n); \
         }
     #define BETWEEN(a, b, c) ((a >= b) && (a <= c))
+    #define UNUSED           __attribute__((unused))
 
 typedef struct {
     bool paused;
