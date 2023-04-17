@@ -8,6 +8,7 @@ static void constructor(void *ptr, va_list UNUSED *args)
     self->instructions = new_class(Instructions);
     self->bus = new_class(Bus, self->cartridge, self->ram, self);
     self->cpu = new_class(CPU, self->bus, self->instructions, self);
+    self->stack = new_class(Stack, self->cpu);
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
         HANDLE_ERROR("failed memory allocation");
     }
@@ -21,6 +22,7 @@ static void destructor(void *ptr)
     destroy_class(self->bus);
     destroy_class(self->instructions);
     destroy_class(self->ram);
+    destroy_class(self->stack);
     free(self->context);
 }
 
