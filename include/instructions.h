@@ -11,7 +11,7 @@ typedef struct instructions_aux {
     class_t metadata;
     instruction_t instructions[0x100];
     char *lookup_table[48];
-    proc_fn processors[34];
+    proc_fn processors[36];
     /* Methods */
     proc_fn (*get_proc)(InstructionsClass *, instruction_type_t);
     instruction_t *(*by_opcode)(InstructionsClass *, uint8_t);
