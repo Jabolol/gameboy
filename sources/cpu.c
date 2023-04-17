@@ -26,7 +26,7 @@ static void init(CPUClass *self)
 static void fetch_instructions(CPUClass *self)
 {
     self->context->opcode =
-        self->bus->read(self->bus, self->context->registers.pc++);
+        self->bus->read(self->bus, self->get_registers(self)->pc++);
     self->context->inst = self->instructions->by_opcode(
         self->instructions, self->context->opcode);
 }
@@ -49,22 +49,25 @@ static void fetch_data(CPUClass *self)
         case AM_R_R: {
             self->context->fetched_data =
                 self->read_register(self, self->context->inst->register_2);
+            break;
         }
         case AM_R_D8: {
             self->context->fetched_data =
-                self->bus->read(self->bus, self->context->registers.pc++);
+                self->bus->read(self->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
+            self->context->registers.pc++;
             break;
         }
         case AM_R_D16:
         case AM_D16: {
             uint16_t lo =
-                self->bus->read(self->bus, self->context->registers.pc++);
+                self->bus->read(self->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
             uint16_t hi =
-                self->bus->read(self->bus, self->context->registers.pc++);
+                self->bus->read(self->bus, self->context->registers.pc + 1);
             self->parent->cycles(self->parent, 1);
             self->context->fetched_data = lo | (hi << 8);
+            self->context->registers.pc += 2;
             break;
         }
         case AM_MR_R: {
@@ -128,48 +131,54 @@ static void fetch_data(CPUClass *self)
         }
         case AM_R_A8: {
             self->context->fetched_data =
-                self->bus->read(self->bus, self->context->registers.pc++);
+                self->bus->read(self->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
+            self->context->registers.pc++;
             break;
         }
         case AM_A8_R: {
             self->context->mem_dest =
-                self->bus->read(self->bus, self->context->registers.pc++)
+                self->bus->read(self->bus, self->context->registers.pc)
                 | 0xFF00;
             self->context->dest_is_mem = true;
             self->parent->cycles(self->parent, 1);
+            self->context->registers.pc++;
             break;
         }
         case AM_HL_SPR: {
             self->context->fetched_data =
-                self->bus->read(self->bus, self->context->registers.pc++);
+                self->bus->read(self->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
+            self->context->registers.pc++;
             break;
         }
         case AM_D8: {
             self->context->fetched_data =
-                self->bus->read(self->bus, self->context->registers.pc++);
+                self->bus->read(self->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
+            self->context->registers.pc++;
             break;
         }
         case AM_A16_R:
         case AM_D16_R: {
             uint16_t lo =
-                self->bus->read(self->bus, self->context->registers.pc++);
+                self->bus->read(self->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
             uint16_t hi =
-                self->bus->read(self->bus, self->context->registers.pc++);
+                self->bus->read(self->bus, self->context->registers.pc + 1);
             self->parent->cycles(self->parent, 1);
             self->context->dest_is_mem = true;
             self->context->mem_dest = lo | (hi << 8);
             self->context->fetched_data =
                 self->read_register(self, self->context->inst->register_2);
+            self->context->registers.pc += 2;
             break;
         }
         case AM_MR_D8: {
             self->context->fetched_data =
-                self->bus->read(self->bus, self->context->registers.pc++);
+                self->bus->read(self->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
+            self->context->registers.pc++;
             self->context->dest_is_mem = true;
             self->context->mem_dest =
                 self->read_register(self, self->context->inst->register_1);
@@ -187,13 +196,14 @@ static void fetch_data(CPUClass *self)
         }
         case AM_R_A16: {
             uint16_t lo =
-                self->bus->read(self->bus, self->context->registers.pc++);
+                self->bus->read(self->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
             uint16_t hi =
-                self->bus->read(self->bus, self->context->registers.pc++);
+                self->bus->read(self->bus, self->context->registers.pc + 1);
             self->parent->cycles(self->parent, 1);
             uint16_t address = lo | (hi << 8);
             self->context->fetched_data = self->bus->read(self->bus, address);
+            self->context->registers.pc++;
             self->parent->cycles(self->parent, 1);
             break;
         }
@@ -315,6 +325,7 @@ static bool step(CPUClass *self)
     if (!self->context->halted) {
         uint16_t pc = self->context->registers.pc;
         self->fetch_instructions(self);
+        self->parent->cycles(self->parent, 1);
         self->fetch_data(self);
         printf("%04X: %-7s (%02X %02X %02X) A: %02X BC: %02X%02X DE: %02X%02X "
                "HL: %02X%02X\n",
@@ -348,6 +359,11 @@ static uint8_t get_ie_register(CPUClass *self)
     return self->context->ie_register;
 }
 
+static registers_t *get_registers(CPUClass *self)
+{
+    return &self->context->registers;
+}
+
 const CPUClass init_CPU = {
     {
         ._size = sizeof(CPUClass),
@@ -369,6 +385,7 @@ const CPUClass init_CPU = {
     .set_register = set_register,
     .set_ie_register = set_ie_register,
     .get_ie_register = get_ie_register,
+    .get_registers = get_registers,
 };
 
 const class_t *CPU = (const class_t *) &init_CPU;
