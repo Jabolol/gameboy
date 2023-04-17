@@ -77,7 +77,9 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
             break;
         }
         case IO_REGS_RANGE: {
-            HANDLE_ERROR("not implemented write at IO_REGS_RANGE");
+            // HANDLE_ERROR("not implemented write at IO_REGS_RANGE");
+            NOT_IMPLEMENTED();
+            break;
         }
         case HRAM_RANGE: {
             self->ram->hram_write(self->ram, address, value);
