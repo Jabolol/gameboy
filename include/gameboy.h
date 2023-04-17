@@ -7,6 +7,7 @@
 #include "cpu.h"
 #include "oop.h"
 #include "ram.h"
+#include "stack.h"
 #include "SDL2/SDL_ttf.h"
 
 #ifndef __GAMEBOY
@@ -22,6 +23,7 @@ typedef struct gameboy_aux {
     BusClass *bus;
     InstructionsClass *instructions;
     RamClass *ram;
+    StackClass *stack;
     emulator_context_t *context;
     /* Methods */
     int32_t (*run)(GameboyClass *, int32_t, char **);
