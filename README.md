@@ -1,13 +1,14 @@
 # gameboy
 
-<img align="right" src="./assets/logo.png" width="150px" alt="the game boy logo" />
+<img align="right" src="./assets/logo.png" width="150px" alt="the gameboy logo" />
 
-Welcome to my **GameBoy** emulator!
+Welcome to my **GameBoy** emulator! It's still a _work in progress_ but it aims
+to be a fully functional emulator.
 
-- (TBD)
-- (TBD)
-- (TBD)
-- (TBD)
+- Emulated hardware: `CPU`, `GPU`, `memory` and `graphics`
+- Wide compatibility with `ROM`s
+- Real-time `assembly` instructions display
+- Built with plain `C` for extra fun
 
 # getting started
 
