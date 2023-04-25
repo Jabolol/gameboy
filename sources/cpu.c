@@ -327,14 +327,25 @@ static bool step(CPUClass *self)
         self->fetch_instructions(self);
         self->parent->cycles(self->parent, 1);
         self->fetch_data(self);
-        printf("%04X: %-7s (%02X %02X %02X) A: %02X BC: %02X%02X DE: %02X%02X "
-               "HL: %02X%02X\n",
-            pc,
+
+        char flags[5];
+        snprintf(flags, 4, "%c%c%c%c",
+            self->context->registers.f & (1 << 7) ? 'Z' : '-',
+            self->context->registers.f & (1 << 6) ? 'N' : '-',
+            self->context->registers.f & (1 << 5) ? 'H' : '-',
+            self->context->registers.f & (1 << 4) ? 'C' : '-');
+
+        printf(
+            "%08llX - %04X: %-7s (%02X %02X %02X) A: %02X F: %s BC: %02X%02X "
+            "DE: "
+            "%02X%02X "
+            "HL: %02X%02X\n",
+            self->parent->context->ticks, pc,
             self->instructions->lookup(
                 self->instructions, self->context->inst->type),
             self->context->opcode, self->bus->read(self->bus, pc + 1),
             self->bus->read(self->bus, pc + 2), self->context->registers.a,
-            self->context->registers.b, self->context->registers.c,
+            flags, self->context->registers.b, self->context->registers.c,
             self->context->registers.d, self->context->registers.e,
             self->context->registers.h, self->context->registers.l);
 
@@ -364,6 +375,11 @@ static registers_t *get_registers(CPUClass *self)
     return &self->context->registers;
 }
 
+static bool is_16bit(register_type_t reg)
+{
+    return reg >= RT_AF;
+}
+
 const CPUClass init_CPU = {
     {
         ._size = sizeof(CPUClass),
@@ -386,6 +402,7 @@ const CPUClass init_CPU = {
     .set_ie_register = set_ie_register,
     .get_ie_register = get_ie_register,
     .get_registers = get_registers,
+    .is_16bit = is_16bit,
 };
 
 const class_t *CPU = (const class_t *) &init_CPU;
