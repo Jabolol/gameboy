@@ -30,6 +30,7 @@ typedef struct cpu_aux {
     void (*set_ie_register)(CPUClass *, uint8_t);
     uint8_t (*get_ie_register)(CPUClass *);
     registers_t *(*get_registers)(CPUClass *);
+    bool (*is_16bit)(register_type_t);
 } CPUClass;
 
 extern const class_t *CPU;
