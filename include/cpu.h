@@ -18,7 +18,6 @@ typedef struct cpu_aux {
     InstructionsClass *instructions;
     register_type_t register_lookup[8];
     /* Methods */
-    void (*init)(CPUClass *);
     bool (*step)(CPUClass *);
     void (*fetch_instructions)(CPUClass *);
     void (*fetch_data)(CPUClass *);
@@ -35,6 +34,12 @@ typedef struct cpu_aux {
     register_type_t (*decode_register)(CPUClass *, uint8_t);
     uint8_t (*read_register8)(CPUClass *, register_type_t);
     void (*set_register8)(CPUClass *, register_type_t, uint8_t);
+    uint8_t (*get_int_flags)(CPUClass *);
+    void (*set_int_flags)(CPUClass *, uint8_t);
+    void (*int_handle)(CPUClass *, uint16_t);
+    bool (*int_check)(CPUClass *, uint16_t, interrupt_t);
+    void (*request_interrupt)(CPUClass *, interrupt_t);
+    void (*handle_interrupts)(CPUClass *);
 } CPUClass;
 
 extern const class_t *CPU;
