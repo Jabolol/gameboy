@@ -27,13 +27,17 @@ static uint8_t read(BusClass *self, uint16_t address)
             return 0;
         }
         case OAM_RANGE: {
-            HANDLE_ERROR("not implemented read at OAM_RANGE");
+            // HANDLE_ERROR("not implemented read at OAM_RANGE");
+            NOT_IMPLEMENTED();
+            return 0;
         }
         case RESERVED_RANGE: {
             return 0;
         }
         case IO_REGS_RANGE: {
-            HANDLE_ERROR("not implemented read at IO_REGS_RANGE");
+            // HANDLE_ERROR("not implemented read at IO_REGS_RANGE");
+            NOT_IMPLEMENTED();
+            return 0;
         }
         case HRAM_RANGE: {
             return self->ram->hram_read(self->ram, address);
@@ -57,7 +61,9 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
             break;
         }
         case CHAR_RANGE: {
-            HANDLE_ERROR("not implemented write at CHAR_RANGE");
+            // HANDLE_ERROR("not implemented write at CHAR_RANGE");
+            NOT_IMPLEMENTED();
+            break;
         }
         case CART_RAM_RANGE: {
             self->cartridge->write(self->cartridge, address, value);
@@ -71,7 +77,9 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
             break;
         }
         case OAM_RANGE: {
-            HANDLE_ERROR("not implemented write at OAM_RANGE");
+            // HANDLE_ERROR("not implemented write at OAM_RANGE");
+            NOT_IMPLEMENTED();
+            break;
         }
         case RESERVED_RANGE: {
             break;
