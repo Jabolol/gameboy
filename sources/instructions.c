@@ -71,6 +71,128 @@ static void proc_ldh(CPUClass *cpu)
     cpu->parent->cycles(cpu->parent, 1);
 }
 
+static void proc_and(CPUClass *cpu)
+{
+    cpu->context->registers.a &= cpu->context->fetched_data;
+    cpu->set_flags(cpu, cpu->context->registers.a == 0, 0, 1, 0);
+}
+
+static void proc_or(CPUClass *cpu)
+{
+    cpu->context->registers.a |= cpu->context->fetched_data & 0xFF;
+    cpu->set_flags(cpu, cpu->context->registers.a == 0, 0, 0, 0);
+}
+
+static void proc_cp(CPUClass *cpu)
+{
+    int32_t n = (int32_t) cpu->context->registers.a
+        - (int32_t) cpu->context->fetched_data;
+
+    cpu->set_flags(cpu, n == 0, 1,
+        ((int32_t) cpu->context->registers.a & 0x0F)
+                - ((int32_t) cpu->context->fetched_data & 0x0F)
+            < 0,
+        n < 0);
+}
+
+static void proc_cb(CPUClass *self)
+{
+    uint8_t op = self->context->fetched_data;
+    register_type_t reg = self->decode_register(self, op & 0b111);
+    uint8_t bit = (op >> 3) & 0b111;
+    uint8_t bit_op = (op >> 6) & 0b11;
+    uint8_t reg_val = self->read_register8(self, reg);
+
+    self->parent->cycles(self->parent, 1);
+    if (reg == RT_HL) {
+        self->parent->cycles(self->parent, 2);
+    }
+    switch (bit_op) {
+        case CB_BIT: {
+            return self->set_flags(self, !(reg_val & (1 << bit)), 0, 1, -1);
+        }
+        case CB_RST: {
+            reg_val &= ~(1 << bit);
+            return self->set_register8(self, reg, reg_val);
+        }
+        case CB_SET: {
+            reg_val |= (1 << bit);
+            return self->set_register8(self, reg, reg_val);
+        }
+    }
+
+    bool flag_c = BIT(self->context->registers.f, 4);
+
+    switch (bit) {
+        case CB_RLC: {
+            bool set_c = false;
+            uint8_t result = (reg_val << 1) & 0xFF;
+
+            if ((reg_val & (1 << 7)) != 0) {
+                result |= 1;
+                set_c = true;
+            }
+            self->set_register8(self, reg, result);
+            self->set_flags(self, result == 0, false, false, set_c);
+            break;
+        }
+        case CB_RRC: {
+            uint8_t old = reg_val;
+
+            reg_val >>= 1;
+            reg_val |= (old << 7);
+            self->set_register8(self, reg, reg_val);
+            self->set_flags(self, !reg_val, false, false, old & 1);
+            break;
+        }
+        case CB_RL: {
+            uint8_t old = reg_val;
+
+            reg_val <<= 1;
+            reg_val |= flag_c;
+            self->set_register8(self, reg, reg_val);
+            self->set_flags(self, !reg_val, false, false, !!(old & 0x80));
+            break;
+        }
+        case CB_RR: {
+            uint8_t old = reg_val;
+
+            reg_val >>= 1;
+            reg_val |= (flag_c << 7);
+            self->set_register8(self, reg, reg_val);
+            self->set_flags(self, !reg_val, false, false, old & 1);
+            break;
+        }
+        case CB_SLA: {
+            uint8_t old = reg_val;
+
+            reg_val <<= 1;
+            self->set_register8(self, reg, reg_val);
+            self->set_flags(self, !reg_val, false, false, !!(old & 0x80));
+            break;
+        }
+        case CB_SRA: {
+            uint8_t u = (int8_t) reg_val >> 1;
+
+            self->set_register8(self, reg, u);
+            self->set_flags(self, !u, 0, 0, reg_val & 1);
+            break;
+        }
+        case CB_SWP: {
+            reg_val = ((reg_val & 0xF0) >> 4) | ((reg_val & 0xF) << 4);
+            self->set_register8(self, reg, reg_val);
+            self->set_flags(self, reg_val == 0, false, false, false);
+            break;
+        }
+        case CB_SRL: {
+            uint8_t u = reg_val >> 1;
+            self->set_register8(self, reg, u);
+            self->set_flags(self, !u, 0, 0, reg_val & 1);
+            break;
+        }
+    }
+}
+
 static void proc_xor(CPUClass *cpu)
 {
     cpu->context->registers.a ^= cpu->context->fetched_data & 0xFF;
@@ -478,7 +600,38 @@ const InstructionsClass init_instructions =
                 [0x9D] = {IN_SBC, AM_R_R, RT_A, RT_L},
                 [0x9E] = {IN_SBC, AM_R_MR, RT_A, RT_HL},
                 [0x9F] = {IN_SBC, AM_R_R, RT_A, RT_A},
-                [0xAF] = {IN_XOR, AM_R, RT_A},
+                [0xA0] = {IN_AND, AM_R_R, RT_A, RT_B},
+                [0xA1] = {IN_AND, AM_R_R, RT_A, RT_C},
+                [0xA2] = {IN_AND, AM_R_R, RT_A, RT_D},
+                [0xA3] = {IN_AND, AM_R_R, RT_A, RT_E},
+                [0xA4] = {IN_AND, AM_R_R, RT_A, RT_H},
+                [0xA5] = {IN_AND, AM_R_R, RT_A, RT_L},
+                [0xA6] = {IN_AND, AM_R_MR, RT_A, RT_HL},
+                [0xA7] = {IN_AND, AM_R_R, RT_A, RT_A},
+                [0xA8] = {IN_XOR, AM_R_R, RT_A, RT_B},
+                [0xA9] = {IN_XOR, AM_R_R, RT_A, RT_C},
+                [0xAA] = {IN_XOR, AM_R_R, RT_A, RT_D},
+                [0xAB] = {IN_XOR, AM_R_R, RT_A, RT_E},
+                [0xAC] = {IN_XOR, AM_R_R, RT_A, RT_H},
+                [0xAD] = {IN_XOR, AM_R_R, RT_A, RT_L},
+                [0xAE] = {IN_XOR, AM_R_MR, RT_A, RT_HL},
+                [0xAF] = {IN_XOR, AM_R_R, RT_A, RT_A},
+                [0xB0] = {IN_OR, AM_R_R, RT_A, RT_B},
+                [0xB1] = {IN_OR, AM_R_R, RT_A, RT_C},
+                [0xB2] = {IN_OR, AM_R_R, RT_A, RT_D},
+                [0xB3] = {IN_OR, AM_R_R, RT_A, RT_E},
+                [0xB4] = {IN_OR, AM_R_R, RT_A, RT_H},
+                [0xB5] = {IN_OR, AM_R_R, RT_A, RT_L},
+                [0xB6] = {IN_OR, AM_R_MR, RT_A, RT_HL},
+                [0xB7] = {IN_OR, AM_R_R, RT_A, RT_A},
+                [0xB8] = {IN_CP, AM_R_R, RT_A, RT_B},
+                [0xB9] = {IN_CP, AM_R_R, RT_A, RT_C},
+                [0xBA] = {IN_CP, AM_R_R, RT_A, RT_D},
+                [0xBB] = {IN_CP, AM_R_R, RT_A, RT_E},
+                [0xBC] = {IN_CP, AM_R_R, RT_A, RT_H},
+                [0xBD] = {IN_CP, AM_R_R, RT_A, RT_L},
+                [0xBE] = {IN_CP, AM_R_MR, RT_A, RT_HL},
+                [0xBF] = {IN_CP, AM_R_R, RT_A, RT_A},
                 [0xC0] = {IN_RET, AM_IMP, RT_NONE, RT_NONE, CT_NZ},
                 [0xC1] = {IN_POP, AM_R, RT_BC},
                 [0xC2] = {IN_JP, AM_D16, RT_NONE, RT_NONE, CT_NZ},
@@ -490,6 +643,7 @@ const InstructionsClass init_instructions =
                 [0xC8] = {IN_RET, AM_IMP, RT_NONE, RT_NONE, CT_Z},
                 [0xC9] = {IN_RET},
                 [0xCA] = {IN_JP, AM_D16, RT_NONE, RT_NONE, CT_Z},
+                [0xCB] = {IN_CB, AM_D8},
                 [0xCC] = {IN_CALL, AM_D16, RT_NONE, RT_NONE, CT_Z},
                 [0xCD] = {IN_CALL, AM_D16},
                 [0xCE] = {IN_ADC, AM_R_D8, RT_A},
@@ -509,18 +663,22 @@ const InstructionsClass init_instructions =
                 [0xE1] = {IN_POP, AM_R, RT_HL},
                 [0xE2] = {IN_LD, AM_MR_R, RT_C, RT_A},
                 [0xE5] = {IN_PUSH, AM_R, RT_HL},
+                [0xE6] = {IN_AND, AM_D8},
                 [0xE7] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x20},
                 [0xE8] = {IN_ADD, AM_R_D8, RT_SP},
                 [0xE9] = {IN_JP, AM_MR, RT_HL},
                 [0xEA] = {IN_LD, AM_A16_R, RT_NONE, RT_A},
+                [0xEE] = {IN_XOR, AM_D8},
                 [0xEF] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x28},
                 [0xF0] = {IN_LDH, AM_R_A8, RT_A},
                 [0xF1] = {IN_POP, AM_R, RT_AF},
                 [0xF2] = {IN_LD, AM_R_MR, RT_A, RT_C},
                 [0xF3] = {IN_DI},
                 [0xF5] = {IN_PUSH, AM_R, RT_AF},
+                [0xF6] = {IN_OR, AM_D8},
                 [0xF7] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x30},
                 [0xFA] = {IN_LD, AM_R_A16, RT_A},
+                [0xFE] = {IN_CP, AM_D8},
                 [0xFF] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x38},
             },
         .lookup_table =
@@ -596,6 +754,10 @@ const InstructionsClass init_instructions =
                 [IN_SBC] = proc_sbc,
                 [IN_RETI] = proc_reti,
                 [IN_XOR] = proc_xor,
+                [IN_AND] = proc_and,
+                [IN_OR] = proc_or,
+                [IN_CP] = proc_cp,
+                [IN_CB] = proc_cb,
             },
         .by_opcode = by_opcode,
         .lookup = lookup,
