@@ -56,6 +56,17 @@
     #define IO_REGS_RANGE    0xFF00 ... 0xFF7F
     #define HRAM_RANGE       0xFF80 ... 0xFFFE
     #define CPU_ENABLE_REG   0xFFFF
+    #define CB_BIT           1
+    #define CB_RST           2
+    #define CB_SET           3
+    #define CB_RLC           0
+    #define CB_RRC           1
+    #define CB_RL            2
+    #define CB_RR            3
+    #define CB_SLA           4
+    #define CB_SRA           5
+    #define CB_SWP           6
+    #define CB_SRL           7
 
 typedef struct {
     bool paused;
