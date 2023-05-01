@@ -1,5 +1,7 @@
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <time.h>
 #include "SDL2/SDL.h"
 #include "bus.h"
 #include "cartridge.h"
@@ -8,6 +10,7 @@
 #include "oop.h"
 #include "ram.h"
 #include "stack.h"
+#include "ui.h"
 #include "SDL2/SDL_ttf.h"
 
 #ifndef __GAMEBOY
@@ -24,10 +27,12 @@ typedef struct gameboy_aux {
     InstructionsClass *instructions;
     RamClass *ram;
     StackClass *stack;
+    UiClass *ui;
     emulator_context_t *context;
     /* Methods */
     int32_t (*run)(GameboyClass *, int32_t, char **);
     void (*cycles)(GameboyClass *, int32_t);
+    void *(*cpu_run)(void *);
 } GameboyClass;
 
 extern const class_t *Gameboy;
