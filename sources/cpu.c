@@ -320,6 +320,42 @@ static void set_register(CPUClass *self, register_type_t type, uint16_t val)
     }
 }
 
+static uint8_t read_register8(CPUClass *self, register_type_t reg)
+{
+    switch (reg) {
+        case RT_A: return self->context->registers.a;
+        case RT_F: return self->context->registers.f;
+        case RT_B: return self->context->registers.b;
+        case RT_C: return self->context->registers.c;
+        case RT_D: return self->context->registers.d;
+        case RT_E: return self->context->registers.e;
+        case RT_H: return self->context->registers.h;
+        case RT_L: return self->context->registers.l;
+        case RT_HL:
+            return self->bus->read(
+                self->bus, self->read_register(self, RT_HL));
+        default: HANDLE_ERROR("Invalid register read");
+    }
+}
+
+static void set_register8(CPUClass *self, register_type_t reg, uint8_t val)
+{
+    switch (reg) {
+        case RT_A: self->context->registers.a = val & 0xFF; break;
+        case RT_F: self->context->registers.f = val & 0xFF; break;
+        case RT_B: self->context->registers.b = val & 0xFF; break;
+        case RT_C: self->context->registers.c = val & 0xFF; break;
+        case RT_D: self->context->registers.d = val & 0xFF; break;
+        case RT_E: self->context->registers.e = val & 0xFF; break;
+        case RT_H: self->context->registers.h = val & 0xFF; break;
+        case RT_L: self->context->registers.l = val & 0xFF; break;
+        case RT_HL:
+            self->bus->write(self->bus, self->read_register(self, RT_HL), val);
+            break;
+        default: HANDLE_ERROR("Invalid register set");
+    }
+}
+
 static bool step(CPUClass *self)
 {
     if (!self->context->halted) {
@@ -380,6 +416,15 @@ static bool is_16bit(register_type_t reg)
     return reg >= RT_AF;
 }
 
+static register_type_t decode_register(CPUClass *self, uint8_t reg)
+{
+    if (reg > 0b111) {
+        return RT_NONE;
+    }
+
+    return self->register_lookup[reg];
+}
+
 const CPUClass init_CPU = {
     {
         ._size = sizeof(CPUClass),
@@ -389,6 +434,17 @@ const CPUClass init_CPU = {
     },
     .bus = NULL,
     .instructions = NULL,
+    .register_lookup =
+        {
+            RT_B,
+            RT_C,
+            RT_D,
+            RT_E,
+            RT_H,
+            RT_L,
+            RT_HL,
+            RT_A,
+        },
     .init = init,
     .step = step,
     .set_flags = set_flags,
@@ -403,6 +459,9 @@ const CPUClass init_CPU = {
     .get_ie_register = get_ie_register,
     .get_registers = get_registers,
     .is_16bit = is_16bit,
+    .read_register8 = read_register8,
+    .set_register8 = set_register8,
+    .decode_register = decode_register,
 };
 
 const class_t *CPU = (const class_t *) &init_CPU;
