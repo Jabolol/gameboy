@@ -71,6 +71,7 @@
 typedef struct {
     bool paused;
     bool running;
+    bool die;
     uint64_t ticks;
 } emulator_context_t;
 
@@ -230,7 +231,9 @@ typedef struct {
     bool halted;
     bool stepping;
     bool int_master_enabled;
+    bool enabling_ime;
     uint8_t ie_register;
+    uint8_t int_flags;
 } cpu_context_t;
 
 typedef struct cpu_aux CPUClass;
@@ -241,5 +244,13 @@ typedef struct {
     uint8_t wram[0x2000];
     uint8_t hram[0x80];
 } ram_context_t;
+
+typedef enum {
+    IT_VBLANK = 1,
+    IT_LCD_STAT = 2,
+    IT_TIMER = 4,
+    IT_SERIAL = 8,
+    IT_JOYPAD = 16
+} interrupt_t;
 
 #endif
