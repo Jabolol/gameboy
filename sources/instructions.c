@@ -25,6 +25,11 @@ static void proc_di(CPUClass *cpu)
     cpu->context->int_master_enabled = false;
 }
 
+static void proc_ei(CPUClass *cpu)
+{
+    cpu->context->enabling_ime = true;
+}
+
 static void proc_ld(CPUClass *cpu)
 {
     if (cpu->context->dest_is_mem) {
@@ -71,6 +76,91 @@ static void proc_ldh(CPUClass *cpu)
     cpu->parent->cycles(cpu->parent, 1);
 }
 
+static void proc_rlca(CPUClass *cpu)
+{
+    uint8_t u = cpu->context->registers.a;
+    bool c = (u >> 7) & 1;
+
+    u = (u << 1) | c;
+    cpu->context->registers.a = u;
+    cpu->set_flags(cpu, 0, 0, 0, c);
+}
+
+static void proc_rrca(CPUClass *cpu)
+{
+    uint8_t b = cpu->context->registers.a & 1;
+
+    cpu->context->registers.a >>= 1;
+    cpu->context->registers.a |= (b << 7);
+    cpu->set_flags(cpu, 0, 0, 0, b);
+}
+
+static void proc_rla(CPUClass *cpu)
+{
+    uint8_t u = cpu->context->registers.a;
+    uint8_t cf = BIT(cpu->context->registers.f, 4);
+    uint8_t c = (u >> 7) & 1;
+
+    cpu->context->registers.a = (u << 1) | cf;
+    cpu->set_flags(cpu, 0, 0, 0, c);
+}
+
+static void proc_stop(CPUClass *cpu)
+{
+    HANDLE_ERROR("Stopping the CPU");
+}
+
+static void proc_daa(CPUClass *cpu)
+{
+    uint8_t u = 0;
+    int32_t fc = 0;
+
+    if (BIT(cpu->context->registers.f, 5)
+        || (!BIT(cpu->context->registers.f, 6)
+            && (cpu->context->registers.a & 0xF) > 9)) {
+        u = 6;
+    }
+    if (BIT(cpu->context->registers.f, 4)
+        || (!BIT(cpu->context->registers.f, 6)
+            && cpu->context->registers.a > 0x99)) {
+        u |= 0x60;
+        fc = 1;
+    }
+    cpu->context->registers.a += BIT(cpu->context->registers.f, 6) ? -u : u;
+    cpu->set_flags(cpu, cpu->context->registers.a == 0, -1, 0, fc);
+}
+
+static void proc_cpl(CPUClass *cpu)
+{
+    cpu->context->registers.a = ~cpu->context->registers.a;
+    cpu->set_flags(cpu, -1, 1, 1, -1);
+}
+
+static void proc_scf(CPUClass *cpu)
+{
+    cpu->set_flags(cpu, -1, 0, 0, 1);
+}
+
+static void proc_ccf(CPUClass *cpu)
+{
+    cpu->set_flags(cpu, -1, 0, 0, BIT(cpu->context->registers.f, 4) ^ 1);
+}
+
+static void proc_halt(CPUClass *cpu)
+{
+    cpu->context->halted = true;
+}
+
+static void proc_rra(CPUClass *cpu)
+{
+    uint8_t carry = BIT(cpu->context->registers.f, 4);
+    uint8_t new_c = cpu->context->registers.a & 1;
+
+    cpu->context->registers.a >>= 1;
+    cpu->context->registers.a |= (carry << 7);
+    cpu->set_flags(cpu, 0, 0, 0, new_c);
+}
+
 static void proc_and(CPUClass *cpu)
 {
     cpu->context->registers.a &= cpu->context->fetched_data;
@@ -95,33 +185,33 @@ static void proc_cp(CPUClass *cpu)
         n < 0);
 }
 
-static void proc_cb(CPUClass *self)
+static void proc_cb(CPUClass *cpu)
 {
-    uint8_t op = self->context->fetched_data;
-    register_type_t reg = self->decode_register(self, op & 0b111);
+    uint8_t op = cpu->context->fetched_data;
+    register_type_t reg = cpu->decode_register(cpu, op & 0b111);
     uint8_t bit = (op >> 3) & 0b111;
     uint8_t bit_op = (op >> 6) & 0b11;
-    uint8_t reg_val = self->read_register8(self, reg);
+    uint8_t reg_val = cpu->read_register8(cpu, reg);
 
-    self->parent->cycles(self->parent, 1);
+    cpu->parent->cycles(cpu->parent, 1);
     if (reg == RT_HL) {
-        self->parent->cycles(self->parent, 2);
+        cpu->parent->cycles(cpu->parent, 2);
     }
     switch (bit_op) {
         case CB_BIT: {
-            return self->set_flags(self, !(reg_val & (1 << bit)), 0, 1, -1);
+            return cpu->set_flags(cpu, !(reg_val & (1 << bit)), 0, 1, -1);
         }
         case CB_RST: {
             reg_val &= ~(1 << bit);
-            return self->set_register8(self, reg, reg_val);
+            return cpu->set_register8(cpu, reg, reg_val);
         }
         case CB_SET: {
             reg_val |= (1 << bit);
-            return self->set_register8(self, reg, reg_val);
+            return cpu->set_register8(cpu, reg, reg_val);
         }
     }
 
-    bool flag_c = BIT(self->context->registers.f, 4);
+    bool flag_c = BIT(cpu->context->registers.f, 4);
 
     switch (bit) {
         case CB_RLC: {
@@ -132,8 +222,8 @@ static void proc_cb(CPUClass *self)
                 result |= 1;
                 set_c = true;
             }
-            self->set_register8(self, reg, result);
-            self->set_flags(self, result == 0, false, false, set_c);
+            cpu->set_register8(cpu, reg, result);
+            cpu->set_flags(cpu, result == 0, false, false, set_c);
             break;
         }
         case CB_RRC: {
@@ -141,8 +231,8 @@ static void proc_cb(CPUClass *self)
 
             reg_val >>= 1;
             reg_val |= (old << 7);
-            self->set_register8(self, reg, reg_val);
-            self->set_flags(self, !reg_val, false, false, old & 1);
+            cpu->set_register8(cpu, reg, reg_val);
+            cpu->set_flags(cpu, !reg_val, false, false, old & 1);
             break;
         }
         case CB_RL: {
@@ -150,8 +240,8 @@ static void proc_cb(CPUClass *self)
 
             reg_val <<= 1;
             reg_val |= flag_c;
-            self->set_register8(self, reg, reg_val);
-            self->set_flags(self, !reg_val, false, false, !!(old & 0x80));
+            cpu->set_register8(cpu, reg, reg_val);
+            cpu->set_flags(cpu, !reg_val, false, false, !!(old & 0x80));
             break;
         }
         case CB_RR: {
@@ -159,35 +249,35 @@ static void proc_cb(CPUClass *self)
 
             reg_val >>= 1;
             reg_val |= (flag_c << 7);
-            self->set_register8(self, reg, reg_val);
-            self->set_flags(self, !reg_val, false, false, old & 1);
+            cpu->set_register8(cpu, reg, reg_val);
+            cpu->set_flags(cpu, !reg_val, false, false, old & 1);
             break;
         }
         case CB_SLA: {
             uint8_t old = reg_val;
 
             reg_val <<= 1;
-            self->set_register8(self, reg, reg_val);
-            self->set_flags(self, !reg_val, false, false, !!(old & 0x80));
+            cpu->set_register8(cpu, reg, reg_val);
+            cpu->set_flags(cpu, !reg_val, false, false, !!(old & 0x80));
             break;
         }
         case CB_SRA: {
             uint8_t u = (int8_t) reg_val >> 1;
 
-            self->set_register8(self, reg, u);
-            self->set_flags(self, !u, 0, 0, reg_val & 1);
+            cpu->set_register8(cpu, reg, u);
+            cpu->set_flags(cpu, !u, 0, 0, reg_val & 1);
             break;
         }
         case CB_SWP: {
             reg_val = ((reg_val & 0xF0) >> 4) | ((reg_val & 0xF) << 4);
-            self->set_register8(self, reg, reg_val);
-            self->set_flags(self, reg_val == 0, false, false, false);
+            cpu->set_register8(cpu, reg, reg_val);
+            cpu->set_flags(cpu, reg_val == 0, false, false, false);
             break;
         }
         case CB_SRL: {
             uint8_t u = reg_val >> 1;
-            self->set_register8(self, reg, u);
-            self->set_flags(self, !u, 0, 0, reg_val & 1);
+            cpu->set_register8(cpu, reg, u);
+            cpu->set_flags(cpu, !u, 0, 0, reg_val & 1);
             break;
         }
     }
@@ -280,7 +370,7 @@ static void proc_push(CPUClass *cpu)
     cpu->parent->stack->push(cpu->parent->stack, hi);
 
     uint8_t lo =
-        cpu->read_register(cpu, cpu->context->inst->register_2) & 0xFF;
+        cpu->read_register(cpu, cpu->context->inst->register_1) & 0xFF;
     cpu->parent->cycles(cpu->parent, 1);
     cpu->parent->stack->push(cpu->parent->stack, lo);
 
@@ -456,6 +546,7 @@ const InstructionsClass init_instructions =
                 [0x04] = {IN_INC, AM_R, RT_B},
                 [0x05] = {IN_DEC, AM_R, RT_B},
                 [0x06] = {IN_LD, AM_R_D8, RT_B},
+                [0x07] = {IN_RLCA},
                 [0x08] = {IN_LD, AM_A16_R, RT_NONE, RT_SP},
                 [0x09] = {IN_ADD, AM_R_R, RT_HL, RT_BC},
                 [0x0A] = {IN_LD, AM_R_MR, RT_A, RT_BC},
@@ -463,12 +554,15 @@ const InstructionsClass init_instructions =
                 [0x0C] = {IN_INC, AM_R, RT_C},
                 [0x0D] = {IN_DEC, AM_R, RT_C},
                 [0x0E] = {IN_LD, AM_R_D8, RT_C},
+                [0x0F] = {IN_RRCA},
+                [0x10] = {IN_STOP},
                 [0x11] = {IN_LD, AM_R_D16, RT_DE},
                 [0x12] = {IN_LD, AM_MR_R, RT_DE, RT_A},
                 [0x13] = {IN_INC, AM_R, RT_DE},
                 [0x14] = {IN_INC, AM_R, RT_D},
                 [0x15] = {IN_DEC, AM_R, RT_D},
                 [0x16] = {IN_LD, AM_R_D8, RT_D},
+                [0x17] = {IN_RLA},
                 [0x18] = {IN_JR, AM_D8},
                 [0x19] = {IN_ADD, AM_R_R, RT_HL, RT_DE},
                 [0x1A] = {IN_LD, AM_R_MR, RT_A, RT_DE},
@@ -476,6 +570,7 @@ const InstructionsClass init_instructions =
                 [0x1C] = {IN_INC, AM_R, RT_E},
                 [0x1D] = {IN_DEC, AM_R, RT_E},
                 [0x1E] = {IN_LD, AM_R_D8, RT_E},
+                [0x1F] = {IN_RRA},
                 [0x20] = {IN_JR, AM_D8, RT_NONE, RT_NONE, CT_NZ},
                 [0x21] = {IN_LD, AM_R_D16, RT_HL},
                 [0x22] = {IN_LD, AM_HLI_R, RT_HL, RT_A},
@@ -653,11 +748,13 @@ const InstructionsClass init_instructions =
                 [0xD2] = {IN_JP, AM_D16, RT_NONE, RT_NONE, CT_NC},
                 [0xD4] = {IN_CALL, AM_D16, RT_NONE, RT_NONE, CT_NC},
                 [0xD5] = {IN_PUSH, AM_R, RT_DE},
+                [0xD6] = {IN_SUB, AM_D8},
                 [0xD7] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x10},
                 [0xD8] = {IN_RET, AM_IMP, RT_NONE, RT_NONE, CT_C},
                 [0xD9] = {IN_RETI},
                 [0xDA] = {IN_JP, AM_D16, RT_NONE, RT_NONE, CT_C},
                 [0xDC] = {IN_CALL, AM_D16, RT_NONE, RT_NONE, CT_C},
+                [0xDE] = {IN_SBC, AM_R_D8, RT_A},
                 [0xDF] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x18},
                 [0xE0] = {IN_LDH, AM_A8_R, RT_NONE, RT_A},
                 [0xE1] = {IN_POP, AM_R, RT_HL},
@@ -677,7 +774,10 @@ const InstructionsClass init_instructions =
                 [0xF5] = {IN_PUSH, AM_R, RT_AF},
                 [0xF6] = {IN_OR, AM_D8},
                 [0xF7] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x30},
+                [0xF8] = {IN_LD, AM_HL_SPR, RT_HL, RT_SP},
+                [0xF9] = {IN_LD, AM_R_R, RT_SP, RT_HL},
                 [0xFA] = {IN_LD, AM_R_A16, RT_A},
+                [0xFB] = {IN_EI},
                 [0xFE] = {IN_CP, AM_D8},
                 [0xFF] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x38},
             },
@@ -757,7 +857,18 @@ const InstructionsClass init_instructions =
                 [IN_AND] = proc_and,
                 [IN_OR] = proc_or,
                 [IN_CP] = proc_cp,
+                [IN_RRCA] = proc_rrca,
+                [IN_RLCA] = proc_rlca,
+                [IN_RRA] = proc_rra,
+                [IN_RLA] = proc_rla,
+                [IN_STOP] = proc_stop,
                 [IN_CB] = proc_cb,
+                [IN_HALT] = proc_halt,
+                [IN_DAA] = proc_daa,
+                [IN_CPL] = proc_cpl,
+                [IN_SCF] = proc_scf,
+                [IN_CCF] = proc_ccf,
+                [IN_EI] = proc_ei,
             },
         .by_opcode = by_opcode,
         .lookup = lookup,
