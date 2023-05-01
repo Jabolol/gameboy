@@ -6,6 +6,8 @@ static void constructor(void *ptr, va_list *args)
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
         HANDLE_ERROR("failed memory allocation");
     }
+    self->context->registers.pc = 0x100;
+    self->context->registers.a = 0x01;
     self->bus = va_arg(*args, BusClass *);
     self->instructions = va_arg(*args, InstructionsClass *);
     self->parent = va_arg(*args, GameboyClass *);
@@ -15,12 +17,6 @@ static void destructor(void *ptr)
 {
     CPUClass *self = (CPUClass *) ptr;
     free(self->context);
-}
-
-static void init(CPUClass *self)
-{
-    self->context->registers.pc = 0x100;
-    self->context->registers.a = 0x01;
 }
 
 static void fetch_instructions(CPUClass *self)
@@ -364,8 +360,8 @@ static bool step(CPUClass *self)
         self->parent->cycles(self->parent, 1);
         self->fetch_data(self);
 
-        char flags[5];
-        snprintf(flags, 4, "%c%c%c%c",
+        char flags[16];
+        sprintf(flags, "%c%c%c%c",
             self->context->registers.f & (1 << 7) ? 'Z' : '-',
             self->context->registers.f & (1 << 6) ? 'N' : '-',
             self->context->registers.f & (1 << 5) ? 'H' : '-',
@@ -392,6 +388,18 @@ static bool step(CPUClass *self)
             HANDLE_ERROR(buff);
         }
         self->execute(self);
+    } else {
+        self->parent->cycles(self->parent, 1);
+        if (self->context->int_flags) {
+            self->context->halted = false;
+        }
+    }
+    if (self->context->int_master_enabled) {
+        self->handle_interrupts(self);
+        self->context->enabling_ime = false;
+    }
+    if (self->context->enabling_ime) {
+        self->context->int_master_enabled = true;
     }
     return true;
 }
@@ -425,6 +433,40 @@ static register_type_t decode_register(CPUClass *self, uint8_t reg)
     return self->register_lookup[reg];
 }
 
+static uint8_t get_int_flags(CPUClass *self)
+{
+    return self->context->int_flags;
+}
+
+static void set_int_flags(CPUClass *self, uint8_t value)
+{
+    self->context->int_flags = value;
+}
+
+static void int_handle(CPUClass *self, uint16_t address)
+{
+    self->parent->stack->push16(
+        self->parent->stack, self->context->registers.pc);
+    self->context->registers.pc = address;
+}
+
+static bool int_check(CPUClass *self, uint16_t address, interrupt_t interr)
+{
+    if (self->context->int_flags & interr
+        && self->context->ie_register & interr) {
+        self->int_handle(self, address);
+        self->context->int_flags &= ~interr;
+        self->context->halted = false;
+        self->context->int_master_enabled = false;
+        return true;
+    }
+    return false;
+}
+
+static void handle_interrupts(CPUClass UNUSED *self)
+{
+}
+
 const CPUClass init_CPU = {
     {
         ._size = sizeof(CPUClass),
@@ -445,7 +487,6 @@ const CPUClass init_CPU = {
             RT_HL,
             RT_A,
         },
-    .init = init,
     .step = step,
     .set_flags = set_flags,
     .fetch_instructions = fetch_instructions,
@@ -462,6 +503,11 @@ const CPUClass init_CPU = {
     .read_register8 = read_register8,
     .set_register8 = set_register8,
     .decode_register = decode_register,
+    .int_handle = int_handle,
+    .int_check = int_check,
+    .set_int_flags = set_int_flags,
+    .get_int_flags = get_int_flags,
+    .handle_interrupts = handle_interrupts,
 };
 
 const class_t *CPU = (const class_t *) &init_CPU;
