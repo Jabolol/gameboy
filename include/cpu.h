@@ -16,6 +16,7 @@ typedef struct cpu_aux {
     GameboyClass *parent;
     BusClass *bus;
     InstructionsClass *instructions;
+    register_type_t register_lookup[8];
     /* Methods */
     void (*init)(CPUClass *);
     bool (*step)(CPUClass *);
@@ -31,6 +32,9 @@ typedef struct cpu_aux {
     uint8_t (*get_ie_register)(CPUClass *);
     registers_t *(*get_registers)(CPUClass *);
     bool (*is_16bit)(register_type_t);
+    register_type_t (*decode_register)(CPUClass *, uint8_t);
+    uint8_t (*read_register8)(CPUClass *, register_type_t);
+    void (*set_register8)(CPUClass *, register_type_t, uint8_t);
 } CPUClass;
 
 extern const class_t *CPU;
