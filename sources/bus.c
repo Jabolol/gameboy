@@ -3,8 +3,6 @@
 static void constructor(void *ptr, va_list *args)
 {
     BusClass *self = (BusClass *) ptr;
-    self->cartridge = va_arg(*args, CartridgeClass *);
-    self->ram = va_arg(*args, RamClass *);
     self->parent = va_arg(*args, GameboyClass *);
 }
 
@@ -12,16 +10,16 @@ static uint8_t read(BusClass *self, uint16_t address)
 {
     switch (address) {
         case ROM_RANGE: {
-            return self->cartridge->read(self->cartridge, address);
+            return self->parent->cartridge->read(self->parent->cartridge, address);
         }
         case CHAR_RANGE: {
             HANDLE_ERROR("not implemented read at CHAR_RANGE");
         }
         case CART_RAM_RANGE: {
-            return self->cartridge->read(self->cartridge, address);
+            return self->parent->cartridge->read(self->parent->cartridge, address);
         }
         case WRAM_RANGE: {
-            return self->ram->wram_read(self->ram, address);
+            return self->parent->ram->wram_read(self->parent->ram, address);
         }
         case ECHO_RANGE: {
             return 0;
@@ -35,12 +33,10 @@ static uint8_t read(BusClass *self, uint16_t address)
             return 0;
         }
         case IO_REGS_RANGE: {
-            // HANDLE_ERROR("not implemented read at IO_REGS_RANGE");
-            NOT_IMPLEMENTED();
-            return 0;
+            return self->parent->io->read(self->parent->io, address);
         }
         case HRAM_RANGE: {
-            return self->ram->hram_read(self->ram, address);
+            return self->parent->ram->hram_read(self->parent->ram, address);
         }
         case CPU_ENABLE_REG: {
             return self->parent->cpu->get_ie_register(self->parent->cpu);
@@ -57,7 +53,7 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
 {
     switch (address) {
         case ROM_RANGE: {
-            self->cartridge->write(self->cartridge, address, value);
+            self->parent->cartridge->write(self->parent->cartridge, address, value);
             break;
         }
         case CHAR_RANGE: {
@@ -66,11 +62,11 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
             break;
         }
         case CART_RAM_RANGE: {
-            self->cartridge->write(self->cartridge, address, value);
+            self->parent->cartridge->write(self->parent->cartridge, address, value);
             break;
         }
         case WRAM_RANGE: {
-            self->ram->wram_write(self->ram, address, value);
+            self->parent->ram->wram_write(self->parent->ram, address, value);
             break;
         }
         case ECHO_RANGE: {
@@ -85,12 +81,11 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
             break;
         }
         case IO_REGS_RANGE: {
-            // HANDLE_ERROR("not implemented write at IO_REGS_RANGE");
-            NOT_IMPLEMENTED();
+            self->parent->io->write(self->parent->io, address, value);
             break;
         }
         case HRAM_RANGE: {
-            self->ram->hram_write(self->ram, address, value);
+            self->parent->ram->hram_write(self->parent->ram, address, value);
             break;
         }
         case CPU_ENABLE_REG: {
