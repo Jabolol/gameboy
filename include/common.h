@@ -67,6 +67,19 @@
     #define CB_SRA           5
     #define CB_SWP           6
     #define CB_SRL           7
+    #define LOOKUP_REG1      self->str_register_lookup[instruction->register_1]
+    #define LOOKUP_REG2      self->str_register_lookup[instruction->register_2]
+    #define WIDTH            1024
+    #define HEIGHT           768
+    #define SERIAL_DATA      0xFF01
+    #define SERIAL_CONTROL   0xFF02
+    #define FIRST_LAST_SET   0b10000001
+    #define DIV              0xFF04
+    #define TIMA             0xFF05
+    #define TMA              0xFF06
+    #define TAC              0xFF07
+    #define TIMER_RANGE      0xFF04 ... 0xFF07
+    #define INTERRUPT_FLAG   0xFF0F
 
 typedef struct {
     bool paused;
@@ -252,5 +265,12 @@ typedef enum {
     IT_SERIAL = 8,
     IT_JOYPAD = 16
 } interrupt_t;
+
+typedef struct {
+    uint16_t div;
+    uint8_t tima;
+    uint8_t tma;
+    uint8_t tac;
+} timer_context_t;
 
 #endif
