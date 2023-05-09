@@ -14,9 +14,8 @@ typedef struct cpu_aux {
     class_t metadata;
     cpu_context_t *context;
     GameboyClass *parent;
-    BusClass *bus;
-    InstructionsClass *instructions;
     register_type_t register_lookup[8];
+    char *str_register_lookup[15];
     /* Methods */
     bool (*step)(CPUClass *);
     void (*fetch_instructions)(CPUClass *);
@@ -40,6 +39,7 @@ typedef struct cpu_aux {
     bool (*int_check)(CPUClass *, uint16_t, interrupt_t);
     void (*request_interrupt)(CPUClass *, interrupt_t);
     void (*handle_interrupts)(CPUClass *);
+    void (*pretty_instruction)(CPUClass *, char *);
 } CPUClass;
 
 extern const class_t *CPU;
