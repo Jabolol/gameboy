@@ -3,14 +3,14 @@
 static void constructor(void *ptr, va_list *args)
 {
     StackClass *self = (StackClass *) ptr;
-    self->cpu = va_arg(*args, CPUClass *);
+    self->parent = va_arg(*args, GameboyClass *);
 }
 
 static void push(StackClass *self, uint8_t data)
 {
-    self->cpu->get_registers(self->cpu)->sp--;
-    self->cpu->bus->write(
-        self->cpu->bus, self->cpu->get_registers(self->cpu)->sp, data);
+    self->parent->cpu->get_registers(self->parent->cpu)->sp--;
+    self->parent->bus->write(self->parent->bus,
+        self->parent->cpu->get_registers(self->parent->cpu)->sp, data);
 }
 
 static void push16(StackClass *self, uint16_t data)
@@ -21,8 +21,8 @@ static void push16(StackClass *self, uint16_t data)
 
 static uint8_t pop(StackClass *self)
 {
-    return self->cpu->bus->read(
-        self->cpu->bus, self->cpu->get_registers(self->cpu)->sp++);
+    return self->parent->bus->read(self->parent->bus,
+        self->parent->cpu->get_registers(self->parent->cpu)->sp++);
 }
 
 static uint16_t pop16(StackClass *self)
