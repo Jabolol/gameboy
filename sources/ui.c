@@ -19,6 +19,8 @@ static void destructor(void *ptr)
     UiClass *self = (UiClass *) ptr;
     SDL_DestroyWindow(self->window);
     SDL_DestroyRenderer(self->renderer);
+    TTF_Quit();
+    SDL_Quit();
 }
 
 static void handle_events(UiClass *self)
