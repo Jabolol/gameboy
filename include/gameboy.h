@@ -7,9 +7,12 @@
 #include "cartridge.h"
 #include "common.h"
 #include "cpu.h"
+#include "debug.h"
+#include "io.h"
 #include "oop.h"
 #include "ram.h"
 #include "stack.h"
+#include "timer.h"
 #include "ui.h"
 #include "SDL2/SDL_ttf.h"
 
@@ -28,6 +31,9 @@ typedef struct gameboy_aux {
     RamClass *ram;
     StackClass *stack;
     UiClass *ui;
+    IoClass *io;
+    DebugClass *debug;
+    TimerClass *timer;
     emulator_context_t *context;
     /* Methods */
     int32_t (*run)(GameboyClass *, int32_t, char **);
