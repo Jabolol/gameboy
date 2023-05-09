@@ -6,11 +6,18 @@ static void constructor(void *ptr, va_list *args)
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
         HANDLE_ERROR("failed memory allocation");
     }
-    self->context->registers.pc = 0x100;
-    self->context->registers.a = 0x01;
-    self->bus = va_arg(*args, BusClass *);
-    self->instructions = va_arg(*args, InstructionsClass *);
     self->parent = va_arg(*args, GameboyClass *);
+    self->context->registers.pc = 0x100;
+    self->context->registers.sp = 0xFFFE;
+    *((int16_t *) &self->context->registers.a) = 0xB001;
+    *((int16_t *) &self->context->registers.b) = 0x1300;
+    *((int16_t *) &self->context->registers.d) = 0xD800;
+    *((int16_t *) &self->context->registers.h) = 0x4D01;
+    self->context->ie_register = 0;
+    self->context->int_flags = 0;
+    self->context->int_master_enabled = false;
+    self->context->enabling_ime = false;
+    self->parent->timer->context->div = 0xABCC;
 }
 
 static void destructor(void *ptr)
@@ -21,10 +28,10 @@ static void destructor(void *ptr)
 
 static void fetch_instructions(CPUClass *self)
 {
-    self->context->opcode =
-        self->bus->read(self->bus, self->get_registers(self)->pc++);
-    self->context->inst = self->instructions->by_opcode(
-        self->instructions, self->context->opcode);
+    self->context->opcode = self->parent->bus->read(
+        self->parent->bus, self->get_registers(self)->pc++);
+    self->context->inst = self->parent->instructions->by_opcode(
+        self->parent->instructions, self->context->opcode);
 }
 
 static void fetch_data(CPUClass *self)
@@ -48,19 +55,19 @@ static void fetch_data(CPUClass *self)
             break;
         }
         case AM_R_D8: {
-            self->context->fetched_data =
-                self->bus->read(self->bus, self->context->registers.pc);
+            self->context->fetched_data = self->parent->bus->read(
+                self->parent->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
             self->context->registers.pc++;
             break;
         }
         case AM_R_D16:
         case AM_D16: {
-            uint16_t lo =
-                self->bus->read(self->bus, self->context->registers.pc);
+            uint16_t lo = self->parent->bus->read(
+                self->parent->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
-            uint16_t hi =
-                self->bus->read(self->bus, self->context->registers.pc + 1);
+            uint16_t hi = self->parent->bus->read(
+                self->parent->bus, self->context->registers.pc + 1);
             self->parent->cycles(self->parent, 1);
             self->context->fetched_data = lo | (hi << 8);
             self->context->registers.pc += 2;
@@ -83,14 +90,16 @@ static void fetch_data(CPUClass *self)
             if (self->context->inst->register_2 == RT_C) {
                 address |= 0xFF00;
             }
-            self->context->fetched_data = self->bus->read(self->bus, address);
+            self->context->fetched_data =
+                self->parent->bus->read(self->parent->bus, address);
             self->parent->cycles(self->parent, 1);
             break;
         }
         case AM_R_HLI: {
             uint16_t address =
                 self->read_register(self, self->context->inst->register_2);
-            self->context->fetched_data = self->bus->read(self->bus, address);
+            self->context->fetched_data =
+                self->parent->bus->read(self->parent->bus, address);
             self->parent->cycles(self->parent, 1);
             self->set_register(
                 self, RT_HL, self->read_register(self, RT_HL) + 1);
@@ -99,7 +108,8 @@ static void fetch_data(CPUClass *self)
         case AM_R_HLD: {
             uint16_t address =
                 self->read_register(self, self->context->inst->register_2);
-            self->context->fetched_data = self->bus->read(self->bus, address);
+            self->context->fetched_data =
+                self->parent->bus->read(self->parent->bus, address);
             self->parent->cycles(self->parent, 1);
             self->set_register(
                 self, RT_HL, self->read_register(self, RT_HL) - 1);
@@ -126,15 +136,16 @@ static void fetch_data(CPUClass *self)
             break;
         }
         case AM_R_A8: {
-            self->context->fetched_data =
-                self->bus->read(self->bus, self->context->registers.pc);
+            self->context->fetched_data = self->parent->bus->read(
+                self->parent->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
             self->context->registers.pc++;
             break;
         }
         case AM_A8_R: {
             self->context->mem_dest =
-                self->bus->read(self->bus, self->context->registers.pc)
+                self->parent->bus->read(
+                    self->parent->bus, self->context->registers.pc)
                 | 0xFF00;
             self->context->dest_is_mem = true;
             self->parent->cycles(self->parent, 1);
@@ -142,26 +153,26 @@ static void fetch_data(CPUClass *self)
             break;
         }
         case AM_HL_SPR: {
-            self->context->fetched_data =
-                self->bus->read(self->bus, self->context->registers.pc);
+            self->context->fetched_data = self->parent->bus->read(
+                self->parent->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
             self->context->registers.pc++;
             break;
         }
         case AM_D8: {
-            self->context->fetched_data =
-                self->bus->read(self->bus, self->context->registers.pc);
+            self->context->fetched_data = self->parent->bus->read(
+                self->parent->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
             self->context->registers.pc++;
             break;
         }
         case AM_A16_R:
         case AM_D16_R: {
-            uint16_t lo =
-                self->bus->read(self->bus, self->context->registers.pc);
+            uint16_t lo = self->parent->bus->read(
+                self->parent->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
-            uint16_t hi =
-                self->bus->read(self->bus, self->context->registers.pc + 1);
+            uint16_t hi = self->parent->bus->read(
+                self->parent->bus, self->context->registers.pc + 1);
             self->parent->cycles(self->parent, 1);
             self->context->dest_is_mem = true;
             self->context->mem_dest = lo | (hi << 8);
@@ -171,8 +182,8 @@ static void fetch_data(CPUClass *self)
             break;
         }
         case AM_MR_D8: {
-            self->context->fetched_data =
-                self->bus->read(self->bus, self->context->registers.pc);
+            self->context->fetched_data = self->parent->bus->read(
+                self->parent->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
             self->context->registers.pc++;
             self->context->dest_is_mem = true;
@@ -183,7 +194,8 @@ static void fetch_data(CPUClass *self)
         case AM_MR: {
             uint16_t address =
                 self->read_register(self, self->context->inst->register_1);
-            self->context->fetched_data = self->bus->read(self->bus, address);
+            self->context->fetched_data =
+                self->parent->bus->read(self->parent->bus, address);
             self->context->dest_is_mem = true;
             self->context->mem_dest =
                 self->read_register(self, self->context->inst->register_1);
@@ -191,15 +203,16 @@ static void fetch_data(CPUClass *self)
             break;
         }
         case AM_R_A16: {
-            uint16_t lo =
-                self->bus->read(self->bus, self->context->registers.pc);
+            uint16_t lo = self->parent->bus->read(
+                self->parent->bus, self->context->registers.pc);
             self->parent->cycles(self->parent, 1);
-            uint16_t hi =
-                self->bus->read(self->bus, self->context->registers.pc + 1);
+            uint16_t hi = self->parent->bus->read(
+                self->parent->bus, self->context->registers.pc + 1);
             self->parent->cycles(self->parent, 1);
             uint16_t address = lo | (hi << 8);
-            self->context->fetched_data = self->bus->read(self->bus, address);
-            self->context->registers.pc++;
+            self->context->fetched_data =
+                self->parent->bus->read(self->parent->bus, address);
+            self->context->registers.pc += 2;
             self->parent->cycles(self->parent, 1);
             break;
         }
@@ -214,8 +227,8 @@ static void fetch_data(CPUClass *self)
 
 static void execute(CPUClass *self)
 {
-    proc_fn proc = self->instructions->get_proc(
-        self->instructions, self->context->inst->type);
+    proc_fn proc = self->parent->instructions->get_proc(
+        self->parent->instructions, self->context->inst->type);
 
     if (!proc) {
         HANDLE_ERROR("not implemented");
@@ -328,8 +341,8 @@ static uint8_t read_register8(CPUClass *self, register_type_t reg)
         case RT_H: return self->context->registers.h;
         case RT_L: return self->context->registers.l;
         case RT_HL:
-            return self->bus->read(
-                self->bus, self->read_register(self, RT_HL));
+            return self->parent->bus->read(
+                self->parent->bus, self->read_register(self, RT_HL));
         default: HANDLE_ERROR("Invalid register read");
     }
 }
@@ -346,7 +359,8 @@ static void set_register8(CPUClass *self, register_type_t reg, uint8_t val)
         case RT_H: self->context->registers.h = val & 0xFF; break;
         case RT_L: self->context->registers.l = val & 0xFF; break;
         case RT_HL:
-            self->bus->write(self->bus, self->read_register(self, RT_HL), val);
+            self->parent->bus->write(
+                self->parent->bus, self->read_register(self, RT_HL), val);
             break;
         default: HANDLE_ERROR("Invalid register set");
     }
@@ -367,19 +381,22 @@ static bool step(CPUClass *self)
             self->context->registers.f & (1 << 5) ? 'H' : '-',
             self->context->registers.f & (1 << 4) ? 'C' : '-');
 
+        char instruction_data[16];
+        self->pretty_instruction(self, instruction_data);
+
         printf(
-            "%08llX - %04X: %-7s (%02X %02X %02X) A: %02X F: %s BC: %02X%02X "
+            "%08llX - %04X: %-12s (%02X %02X %02X) A: %02X F: %s BC: %02X%02X "
             "DE: "
             "%02X%02X "
             "HL: %02X%02X\n",
-            self->parent->context->ticks, pc,
-            self->instructions->lookup(
-                self->instructions, self->context->inst->type),
-            self->context->opcode, self->bus->read(self->bus, pc + 1),
-            self->bus->read(self->bus, pc + 2), self->context->registers.a,
-            flags, self->context->registers.b, self->context->registers.c,
-            self->context->registers.d, self->context->registers.e,
-            self->context->registers.h, self->context->registers.l);
+            self->parent->context->ticks, pc, instruction_data,
+            self->context->opcode,
+            self->parent->bus->read(self->parent->bus, pc + 1),
+            self->parent->bus->read(self->parent->bus, pc + 2),
+            self->context->registers.a, flags, self->context->registers.b,
+            self->context->registers.c, self->context->registers.d,
+            self->context->registers.e, self->context->registers.h,
+            self->context->registers.l);
 
         if (self->context->inst == NULL) {
             char buff[256];
@@ -387,6 +404,8 @@ static bool step(CPUClass *self)
                 buff, "Unknown Instruction! %02X\n", self->context->opcode);
             HANDLE_ERROR(buff);
         }
+        self->parent->debug->update(self->parent->debug);
+        self->parent->debug->print(self->parent->debug);
         self->execute(self);
     } else {
         self->parent->cycles(self->parent, 1);
@@ -463,8 +482,102 @@ static bool int_check(CPUClass *self, uint16_t address, interrupt_t interr)
     return false;
 }
 
-static void handle_interrupts(CPUClass UNUSED *self)
+static void handle_interrupts(CPUClass *self)
 {
+    self->int_check(self, 0x40, IT_VBLANK);
+    self->int_check(self, 0x48, IT_LCD_STAT);
+    self->int_check(self, 0x50, IT_TIMER);
+    self->int_check(self, 0x58, IT_SERIAL);
+    self->int_check(self, 0x60, IT_JOYPAD);
+}
+
+static void request_interrupt(CPUClass *self, interrupt_t type)
+{
+    self->context->int_flags |= type;
+}
+
+static void pretty_instruction(CPUClass *self, char *buff)
+{
+    instruction_t *instruction = self->context->inst;
+    char *instruction_name = self->parent->instructions->lookup(
+        self->parent->instructions, instruction->type);
+
+    switch (instruction->mode) {
+        case AM_IMP: sprintf(buff, "%s ", instruction_name); break;
+        case AM_R_D16:
+        case AM_R_A16:
+            sprintf(buff, "%s %s,$%04X", instruction_name, LOOKUP_REG1,
+                self->context->fetched_data);
+            break;
+        case AM_R:
+            sprintf(buff, "%s %s", instruction_name, LOOKUP_REG1);
+            break;
+        case AM_R_R:
+            sprintf(
+                buff, "%s %s,%s", instruction_name, LOOKUP_REG1, LOOKUP_REG2);
+            break;
+        case AM_MR_R:
+            sprintf(buff, "%s (%s),%s", instruction_name, LOOKUP_REG1,
+                LOOKUP_REG2);
+            break;
+        case AM_MR:
+            sprintf(buff, "%s (%s)", instruction_name, LOOKUP_REG1);
+            break;
+        case AM_R_MR:
+            sprintf(buff, "%s %s,(%s)", instruction_name, LOOKUP_REG1,
+                LOOKUP_REG2);
+            break;
+        case AM_R_D8:
+        case AM_R_A8:
+            sprintf(buff, "%s %s,$%02X", instruction_name, LOOKUP_REG1,
+                self->context->fetched_data & 0xFF);
+            break;
+        case AM_R_HLI:
+            sprintf(buff, "%s %s,(%s+)", instruction_name, LOOKUP_REG1,
+                LOOKUP_REG2);
+            break;
+        case AM_R_HLD:
+            sprintf(buff, "%s %s,(%s-)", instruction_name, LOOKUP_REG1,
+                LOOKUP_REG2);
+            break;
+        case AM_HLI_R:
+            sprintf(buff, "%s (%s+),%s", instruction_name, LOOKUP_REG1,
+                LOOKUP_REG2);
+            break;
+        case AM_HLD_R:
+            sprintf(buff, "%s (%s-),%s", instruction_name, LOOKUP_REG1,
+                LOOKUP_REG2);
+            break;
+        case AM_A8_R:
+            sprintf(buff, "%s $%02X,%s", instruction_name,
+                self->parent->bus->read(
+                    self->parent->bus, self->context->registers.pc - 1),
+                LOOKUP_REG2);
+            break;
+        case AM_HL_SPR:
+            sprintf(buff, "%s (%s),SP+%d", instruction_name, LOOKUP_REG1,
+                self->context->fetched_data & 0xFF);
+            break;
+        case AM_D8:
+            sprintf(buff, "%s $%02X", instruction_name,
+                self->context->fetched_data & 0xFF);
+            break;
+        case AM_D16:
+            sprintf(buff, "%s $%04X", instruction_name,
+                self->context->fetched_data);
+            break;
+        case AM_MR_D8:
+            sprintf(buff, "%s (%s),$%02X", instruction_name, LOOKUP_REG1,
+                self->context->fetched_data & 0xFF);
+            break;
+        case AM_A16_R:
+            sprintf(buff, "%s ($%04X),%s", instruction_name,
+                self->context->fetched_data, LOOKUP_REG2);
+            break;
+        default: {
+            HANDLE_ERROR("Invalid Addressing Mode");
+        }
+    }
 }
 
 const CPUClass init_CPU = {
@@ -474,8 +587,6 @@ const CPUClass init_CPU = {
         ._constructor = constructor,
         ._destructor = destructor,
     },
-    .bus = NULL,
-    .instructions = NULL,
     .register_lookup =
         {
             RT_B,
@@ -486,6 +597,24 @@ const CPUClass init_CPU = {
             RT_L,
             RT_HL,
             RT_A,
+        },
+    .str_register_lookup =
+        {
+            "<NONE>",
+            "A",
+            "F",
+            "B",
+            "C",
+            "D",
+            "E",
+            "H",
+            "L",
+            "AF",
+            "BC",
+            "DE",
+            "HL",
+            "SP",
+            "PC",
         },
     .step = step,
     .set_flags = set_flags,
@@ -507,7 +636,9 @@ const CPUClass init_CPU = {
     .int_check = int_check,
     .set_int_flags = set_int_flags,
     .get_int_flags = get_int_flags,
+    .request_interrupt = request_interrupt,
     .handle_interrupts = handle_interrupts,
+    .pretty_instruction = pretty_instruction,
 };
 
 const class_t *CPU = (const class_t *) &init_CPU;
