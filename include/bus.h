@@ -12,8 +12,6 @@ typedef struct gameboy_aux GameboyClass;
 typedef struct bus_aux {
     /* Properties */
     class_t metadata;
-    CartridgeClass *cartridge;
-    RamClass *ram;
     GameboyClass *parent;
     /* Methods */
     uint8_t (*read)(BusClass *, uint16_t);
