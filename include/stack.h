@@ -10,7 +10,7 @@ typedef struct stack_aux StackClass;
 typedef struct stack_aux {
     /* Properties */
     class_t metadata;
-    CPUClass *cpu;
+    GameboyClass *parent;
     /* Methods */
     void (*push)(StackClass *, uint8_t);
     void (*push16)(StackClass *, uint16_t);
