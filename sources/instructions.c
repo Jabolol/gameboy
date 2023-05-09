@@ -35,11 +35,11 @@ static void proc_ld(CPUClass *cpu)
     if (cpu->context->dest_is_mem) {
         if (cpu->is_16bit(cpu->context->inst->register_2)) {
             cpu->parent->cycles(cpu->parent, 1);
-            cpu->bus->write16(
-                cpu->bus, cpu->context->mem_dest, cpu->context->fetched_data);
+            cpu->parent->bus->write16(cpu->parent->bus, cpu->context->mem_dest,
+                cpu->context->fetched_data);
         } else {
-            cpu->bus->write(
-                cpu->bus, cpu->context->mem_dest, cpu->context->fetched_data);
+            cpu->parent->bus->write(cpu->parent->bus, cpu->context->mem_dest,
+                cpu->context->fetched_data);
         }
         cpu->parent->cycles(cpu->parent, 1);
         return;
@@ -68,10 +68,11 @@ static void proc_ldh(CPUClass *cpu)
 {
     if (cpu->context->inst->register_1 == RT_A) {
         cpu->set_register(cpu, cpu->context->inst->register_1,
-            cpu->bus->read(cpu->bus, 0xFF00 | cpu->context->fetched_data));
+            cpu->parent->bus->read(
+                cpu->parent->bus, 0xFF00 | cpu->context->fetched_data));
     } else {
-        cpu->bus->write(
-            cpu->bus, cpu->context->mem_dest, cpu->context->registers.a);
+        cpu->parent->bus->write(cpu->parent->bus, cpu->context->mem_dest,
+            cpu->context->registers.a);
     }
     cpu->parent->cycles(cpu->parent, 1);
 }
@@ -387,9 +388,12 @@ static void proc_inc(CPUClass *cpu)
     }
     if (cpu->context->inst->register_1 == RT_HL
         && cpu->context->inst->mode == AM_MR) {
-        value = cpu->bus->read(cpu->bus, cpu->read_register(cpu, RT_HL)) + 1;
+        value = cpu->parent->bus->read(
+                    cpu->parent->bus, cpu->read_register(cpu, RT_HL))
+            + 1;
         value &= 0xFF;
-        cpu->bus->write(cpu->bus, cpu->read_register(cpu, RT_HL), value);
+        cpu->parent->bus->write(
+            cpu->parent->bus, cpu->read_register(cpu, RT_HL), value);
     } else {
         cpu->set_register(cpu, cpu->context->inst->register_1, value);
         value = cpu->read_register(cpu, cpu->context->inst->register_1);
@@ -410,8 +414,11 @@ static void proc_dec(CPUClass *cpu)
     }
     if (cpu->context->inst->register_1 == RT_HL
         && cpu->context->inst->mode == AM_MR) {
-        value = cpu->bus->read(cpu->bus, cpu->read_register(cpu, RT_HL)) - 1;
-        cpu->bus->write(cpu->bus, cpu->read_register(cpu, RT_HL), value);
+        value = cpu->parent->bus->read(
+                    cpu->parent->bus, cpu->read_register(cpu, RT_HL))
+            - 1;
+        cpu->parent->bus->write(
+            cpu->parent->bus, cpu->read_register(cpu, RT_HL), value);
     } else {
         cpu->set_register(cpu, cpu->context->inst->register_1, value);
         value = cpu->read_register(cpu, cpu->context->inst->register_1);
@@ -439,7 +446,7 @@ static void proc_add(CPUClass *cpu)
     int32_t z = (value & 0XFF) == 0;
     int32_t h = (cpu->read_register(cpu, cpu->context->inst->register_1) & 0xF)
             + (cpu->context->fetched_data & 0xF)
-        >= 10;
+        >= 0x10;
     int32_t c =
         (int32_t) (cpu->read_register(cpu, cpu->context->inst->register_1)
             & 0xFF)
@@ -460,11 +467,11 @@ static void proc_add(CPUClass *cpu)
         z = 0;
         h = (cpu->read_register(cpu, cpu->context->inst->register_1) & 0xF)
                 + (cpu->context->fetched_data & 0xF)
-            >= 10;
+            >= 0x10;
         c = (int32_t) (cpu->read_register(cpu, cpu->context->inst->register_1)
                 & 0xFF)
                 + (int32_t) (cpu->context->fetched_data & 0xFF)
-            > 0x100;
+            >= 0x100;
     }
     cpu->set_register(cpu, cpu->context->inst->register_1, value & 0xFFFF);
     cpu->set_flags(cpu, z, 0, h, c);
@@ -578,6 +585,7 @@ const InstructionsClass init_instructions =
                 [0x24] = {IN_INC, AM_R, RT_H},
                 [0x25] = {IN_DEC, AM_R, RT_H},
                 [0x26] = {IN_LD, AM_R_D8, RT_H},
+                [0x27] = {IN_DAA},
                 [0x28] = {IN_JR, AM_D8, RT_NONE, RT_NONE, CT_Z},
                 [0x29] = {IN_ADD, AM_R_R, RT_HL, RT_HL},
                 [0x2A] = {IN_LD, AM_R_HLI, RT_A, RT_HL},
@@ -585,6 +593,7 @@ const InstructionsClass init_instructions =
                 [0x2C] = {IN_INC, AM_R, RT_L},
                 [0x2D] = {IN_DEC, AM_R, RT_L},
                 [0x2E] = {IN_LD, AM_R_D8, RT_L},
+                [0x2F] = {IN_CPL},
                 [0x30] = {IN_JR, AM_D8, RT_NONE, RT_NONE, CT_NC},
                 [0x31] = {IN_LD, AM_R_D16, RT_SP},
                 [0x32] = {IN_LD, AM_HLD_R, RT_HL, RT_A},
@@ -592,6 +601,7 @@ const InstructionsClass init_instructions =
                 [0x34] = {IN_INC, AM_MR, RT_HL},
                 [0x35] = {IN_DEC, AM_MR, RT_HL},
                 [0x36] = {IN_LD, AM_MR_D8, RT_HL},
+                [0x37] = {IN_SCF},
                 [0x38] = {IN_JR, AM_D8, RT_NONE, RT_NONE, CT_C},
                 [0x39] = {IN_ADD, AM_R_R, RT_HL, RT_SP},
                 [0x3A] = {IN_LD, AM_R_HLD, RT_A, RT_HL},
@@ -599,6 +609,7 @@ const InstructionsClass init_instructions =
                 [0x3C] = {IN_INC, AM_R, RT_A},
                 [0x3D] = {IN_DEC, AM_R, RT_A},
                 [0x3E] = {IN_LD, AM_R_D8, RT_A},
+                [0x3F] = {IN_CCF},
                 [0x40] = {IN_LD, AM_R_R, RT_B, RT_B},
                 [0x41] = {IN_LD, AM_R_R, RT_B, RT_C},
                 [0x42] = {IN_LD, AM_R_R, RT_B, RT_D},
@@ -733,7 +744,7 @@ const InstructionsClass init_instructions =
                 [0xC3] = {IN_JP, AM_D16},
                 [0xC4] = {IN_CALL, AM_D16, RT_NONE, RT_NONE, CT_NZ},
                 [0xC5] = {IN_PUSH, AM_R, RT_BC},
-                [0xC6] = {IN_ADD, AM_R_A8, RT_A},
+                [0xC6] = {IN_ADD, AM_R_D8, RT_A},
                 [0xC7] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x00},
                 [0xC8] = {IN_RET, AM_IMP, RT_NONE, RT_NONE, CT_Z},
                 [0xC9] = {IN_RET},
@@ -748,7 +759,7 @@ const InstructionsClass init_instructions =
                 [0xD2] = {IN_JP, AM_D16, RT_NONE, RT_NONE, CT_NC},
                 [0xD4] = {IN_CALL, AM_D16, RT_NONE, RT_NONE, CT_NC},
                 [0xD5] = {IN_PUSH, AM_R, RT_DE},
-                [0xD6] = {IN_SUB, AM_D8},
+                [0xD6] = {IN_SUB, AM_R_D8, RT_A},
                 [0xD7] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x10},
                 [0xD8] = {IN_RET, AM_IMP, RT_NONE, RT_NONE, CT_C},
                 [0xD9] = {IN_RETI},
@@ -760,25 +771,25 @@ const InstructionsClass init_instructions =
                 [0xE1] = {IN_POP, AM_R, RT_HL},
                 [0xE2] = {IN_LD, AM_MR_R, RT_C, RT_A},
                 [0xE5] = {IN_PUSH, AM_R, RT_HL},
-                [0xE6] = {IN_AND, AM_D8},
+                [0xE6] = {IN_AND, AM_R_D8, RT_A},
                 [0xE7] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x20},
                 [0xE8] = {IN_ADD, AM_R_D8, RT_SP},
-                [0xE9] = {IN_JP, AM_MR, RT_HL},
+                [0xE9] = {IN_JP, AM_R, RT_HL},
                 [0xEA] = {IN_LD, AM_A16_R, RT_NONE, RT_A},
-                [0xEE] = {IN_XOR, AM_D8},
+                [0xEE] = {IN_XOR, AM_R_D8, RT_A},
                 [0xEF] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x28},
                 [0xF0] = {IN_LDH, AM_R_A8, RT_A},
                 [0xF1] = {IN_POP, AM_R, RT_AF},
                 [0xF2] = {IN_LD, AM_R_MR, RT_A, RT_C},
                 [0xF3] = {IN_DI},
                 [0xF5] = {IN_PUSH, AM_R, RT_AF},
-                [0xF6] = {IN_OR, AM_D8},
+                [0xF6] = {IN_OR, AM_R_D8, RT_A},
                 [0xF7] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x30},
                 [0xF8] = {IN_LD, AM_HL_SPR, RT_HL, RT_SP},
                 [0xF9] = {IN_LD, AM_R_R, RT_SP, RT_HL},
                 [0xFA] = {IN_LD, AM_R_A16, RT_A},
                 [0xFB] = {IN_EI},
-                [0xFE] = {IN_CP, AM_D8},
+                [0xFE] = {IN_CP, AM_R_D8, RT_A},
                 [0xFF] = {IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x38},
             },
         .lookup_table =
