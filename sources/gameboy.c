@@ -6,10 +6,13 @@ static void constructor(void *ptr, va_list UNUSED *args)
     self->cartridge = new_class(Cartridge);
     self->ram = new_class(Ram);
     self->instructions = new_class(Instructions);
-    self->bus = new_class(Bus, self->cartridge, self->ram, self);
-    self->cpu = new_class(CPU, self->bus, self->instructions, self);
-    self->stack = new_class(Stack, self->cpu);
-    self->ui = new_class(Ui, self, 1024, 768);
+    self->bus = new_class(Bus, self);
+    self->timer = new_class(Timer, self);
+    self->cpu = new_class(CPU, self);
+    self->stack = new_class(Stack, self);
+    self->ui = new_class(Ui, self, HEIGHT, WIDTH);
+    self->io = new_class(Io, self);
+    self->debug = new_class(Debug, self);
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
         HANDLE_ERROR("failed memory allocation");
     }
@@ -25,6 +28,9 @@ static void destructor(void *ptr)
     destroy_class(self->ram);
     destroy_class(self->stack);
     destroy_class(self->ui);
+    destroy_class(self->io);
+    destroy_class(self->debug);
+    destroy_class(self->timer);
     free(self->context);
 }
 
@@ -48,7 +54,6 @@ static void *cpu_run(void *ptr)
             printf("CPU stopped\n");
             break;
         }
-        self->context->ticks += 1;
     }
     return 0;
 }
@@ -83,8 +88,14 @@ static int32_t run(GameboyClass *self, int argc, char **argv)
     return 0;
 }
 
-static void cycles(GameboyClass UNUSED *self, int32_t UNUSED count)
+static void cycles(GameboyClass *self, int32_t count)
 {
+    int32_t n = count * 4;
+
+    for (int32_t i = 0; i < n; i++) {
+        self->context->ticks += 1;
+        self->timer->tick(self->timer);
+    }
 }
 
 const GameboyClass init_gameboy = {
@@ -94,8 +105,6 @@ const GameboyClass init_gameboy = {
         ._constructor = constructor,
         ._destructor = destructor,
     },
-    .cartridge = NULL,
-    .cpu = NULL,
     .run = run,
     .cycles = cycles,
     .cpu_run = cpu_run,
