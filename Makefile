@@ -20,7 +20,7 @@ $(EXEC): $(OBJ)
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 	@echo "$(GREEN)Done!$(NC)"
 
-%.o: %.c %.d
+%.o: %.c
 	@echo "$(YELLOW)Compiling...$(NC)"
 	$(CC) $(CFLAGS) -c $< -o $@
 	@echo "$(GREEN)Done!$(NC)"
