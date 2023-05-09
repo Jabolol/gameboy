@@ -43,6 +43,7 @@ static bool load(CartridgeClass *self, char *path)
     rewind(stream);
 
     if (!((self->context->rom_data = calloc(self->context->rom_size, 1)))) {
+        fclose(stream);
         HANDLE_ERROR("failed memory allocation");
     }
     fread(self->context->rom_data, self->context->rom_size, 1, stream);
