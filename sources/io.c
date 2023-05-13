@@ -2,11 +2,11 @@
 
 static void constructor(void *ptr, va_list *args)
 {
-    IoClass *self = (IoClass *) ptr;
+    IOClass *self = (IOClass *) ptr;
     self->parent = va_arg(*args, GameboyClass *);
 }
 
-static uint8_t read(IoClass *self, uint16_t address)
+static uint8_t read(IOClass *self, uint16_t address)
 {
     switch (address) {
         case SERIAL_DATA: {
@@ -21,6 +21,9 @@ static uint8_t read(IoClass *self, uint16_t address)
         case INTERRUPT_FLAG: {
             return self->parent->cpu->get_int_flags(self->parent->cpu);
         }
+        case LCD_Y_COORD: {
+            return self->lcd_y++;;
+        }
         default: {
             NOT_IMPLEMENTED();
             return 0;
@@ -28,7 +31,7 @@ static uint8_t read(IoClass *self, uint16_t address)
     }
 }
 
-static void write(IoClass *self, uint16_t address, uint8_t value)
+static void write(IOClass *self, uint16_t address, uint8_t value)
 {
     switch (address) {
         case SERIAL_DATA: {
@@ -47,16 +50,21 @@ static void write(IoClass *self, uint16_t address, uint8_t value)
             self->parent->cpu->set_int_flags(self->parent->cpu, value);
             break;
         }
+        case TRANSFER_REG: {
+            LOG("DMA start");
+            self->parent->dma->start(self->parent->dma, value);
+            break;
+        }
         default: {
             NOT_IMPLEMENTED();
         }
     }
 }
 
-const IoClass init_io = {
+const IOClass init_io = {
     {
-        ._size = sizeof(IoClass),
-        ._name = "Io",
+        ._size = sizeof(IOClass),
+        ._name = "IO",
         ._constructor = constructor,
         ._destructor = NULL,
     },
@@ -64,4 +72,4 @@ const IoClass init_io = {
     .write = write,
 };
 
-const class_t *Io = (const class_t *) &init_io;
+const class_t *IO = (const class_t *) &init_io;
