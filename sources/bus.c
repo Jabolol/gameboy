@@ -10,13 +10,15 @@ static uint8_t read(BusClass *self, uint16_t address)
 {
     switch (address) {
         case ROM_RANGE: {
-            return self->parent->cartridge->read(self->parent->cartridge, address);
+            return self->parent->cartridge->read(
+                self->parent->cartridge, address);
         }
         case CHAR_RANGE: {
-            HANDLE_ERROR("not implemented read at CHAR_RANGE");
+            return self->parent->ppu->vram_read(self->parent->ppu, address);
         }
         case CART_RAM_RANGE: {
-            return self->parent->cartridge->read(self->parent->cartridge, address);
+            return self->parent->cartridge->read(
+                self->parent->cartridge, address);
         }
         case WRAM_RANGE: {
             return self->parent->ram->wram_read(self->parent->ram, address);
@@ -25,9 +27,10 @@ static uint8_t read(BusClass *self, uint16_t address)
             return 0;
         }
         case OAM_RANGE: {
-            // HANDLE_ERROR("not implemented read at OAM_RANGE");
-            NOT_IMPLEMENTED();
-            return 0;
+            if (self->parent->dma->transferring(self->parent->dma)) {
+                return 0xFF;
+            }
+            return self->parent->ppu->oam_read(self->parent->ppu, address);
         }
         case RESERVED_RANGE: {
             return 0;
@@ -42,8 +45,9 @@ static uint8_t read(BusClass *self, uint16_t address)
             return self->parent->cpu->get_ie_register(self->parent->cpu);
         }
         default: {
-            char buff[256];
-            sprintf(buff, "out of bounds write %04X at UNKNOWN", address);
+            char buff[64];
+            snprintf(buff, sizeof(buff), "out of bounds write %04X at UNKNOWN",
+                address);
             HANDLE_ERROR(buff);
         }
     }
@@ -53,16 +57,17 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
 {
     switch (address) {
         case ROM_RANGE: {
-            self->parent->cartridge->write(self->parent->cartridge, address, value);
+            self->parent->cartridge->write(
+                self->parent->cartridge, address, value);
             break;
         }
         case CHAR_RANGE: {
-            // HANDLE_ERROR("not implemented write at CHAR_RANGE");
-            NOT_IMPLEMENTED();
+            self->parent->ppu->vram_write(self->parent->ppu, address, value);
             break;
         }
         case CART_RAM_RANGE: {
-            self->parent->cartridge->write(self->parent->cartridge, address, value);
+            self->parent->cartridge->write(
+                self->parent->cartridge, address, value);
             break;
         }
         case WRAM_RANGE: {
@@ -73,8 +78,10 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
             break;
         }
         case OAM_RANGE: {
-            // HANDLE_ERROR("not implemented write at OAM_RANGE");
-            NOT_IMPLEMENTED();
+            if (self->parent->dma->transferring(self->parent->dma)) {
+                return;
+            }
+            self->parent->ppu->oam_write(self->parent->ppu, address, value);
             break;
         }
         case RESERVED_RANGE: {
@@ -93,8 +100,9 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
             break;
         }
         default: {
-            char buff[256];
-            sprintf(buff, "not implemented write %04X at UNKNOWN", address);
+            char buff[64];
+            snprintf(buff, sizeof(buff),
+                "not implemented write %04X at UNKNOWN", address);
             HANDLE_ERROR(buff);
         }
     }
