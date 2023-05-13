@@ -4,6 +4,6 @@ int main(int argc, char **argv)
 {
     GameboyClass *gameboy = new_class(Gameboy);
     int exit_code = gameboy->run(gameboy, argc, argv);
-    destroy_class(gameboy);   
+    destroy_class(gameboy);
     return exit_code;
 }
