@@ -81,9 +81,7 @@ static uint8_t read(CartridgeClass *self, uint16_t address)
 static void write(
     CartridgeClass UNUSED *self, uint16_t UNUSED address, uint8_t UNUSED value)
 {
-    char buff[256];
-    sprintf(buff, "not implemented %04X", address);
-    HANDLE_ERROR(buff);
+    NOT_IMPLEMENTED();
 }
 
 const CartridgeClass init_cartridge = {
@@ -195,7 +193,6 @@ const CartridgeClass init_cartridge = {
             [0x99] = "Pack in soft",
             [0xA4] = "Konami (Yu-Gi-Oh!)",
         },
-    .context = NULL,
     .get_license = get_license,
     .get_rom_type = get_rom_type,
     .load = load,
