@@ -4,15 +4,17 @@ static void constructor(void *ptr, va_list UNUSED *args)
 {
     GameboyClass *self = (GameboyClass *) ptr;
     self->cartridge = new_class(Cartridge);
-    self->ram = new_class(Ram);
+    self->ram = new_class(RAM);
     self->instructions = new_class(Instructions);
     self->bus = new_class(Bus, self);
     self->timer = new_class(Timer, self);
     self->cpu = new_class(CPU, self);
     self->stack = new_class(Stack, self);
-    self->ui = new_class(Ui, self, HEIGHT, WIDTH);
-    self->io = new_class(Io, self);
+    self->ui = new_class(UI, self, HEIGHT, WIDTH, SCALE);
+    self->io = new_class(IO, self);
     self->debug = new_class(Debug, self);
+    self->ppu = new_class(PPU);
+    self->dma = new_class(DMA, self);
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
         HANDLE_ERROR("failed memory allocation");
     }
@@ -31,6 +33,8 @@ static void destructor(void *ptr)
     destroy_class(self->io);
     destroy_class(self->debug);
     destroy_class(self->timer);
+    destroy_class(self->ppu);
+    destroy_class(self->dma);
     free(self->context);
 }
 
@@ -51,7 +55,7 @@ static void *cpu_run(void *ptr)
             continue;
         }
         if (!self->cpu->step(self->cpu)) {
-            printf("CPU stopped\n");
+            LOG("CPU stopped\n");
             break;
         }
     }
@@ -72,7 +76,7 @@ static int32_t run(GameboyClass *self, int argc, char **argv)
         return 1;
     }
 
-    printf("Cartridge successfully loaded\n");
+    LOG("Cartridge successfully loaded\n");
 
     if (pthread_create(&thread, NULL, self->cpu_run, self) != 0) {
         HANDLE_ERROR("Failed to create thread");
@@ -81,6 +85,7 @@ static int32_t run(GameboyClass *self, int argc, char **argv)
     while (!self->context->die) {
         nanosleep(&(struct timespec){.tv_nsec = 1000000}, NULL);
         self->ui->handle_events(self->ui);
+        self->ui->update(self->ui);
     }
 
     pthread_join(thread, NULL);
@@ -90,11 +95,12 @@ static int32_t run(GameboyClass *self, int argc, char **argv)
 
 static void cycles(GameboyClass *self, int32_t count)
 {
-    int32_t n = count * 4;
-
-    for (int32_t i = 0; i < n; i++) {
-        self->context->ticks += 1;
-        self->timer->tick(self->timer);
+    for (int32_t i = 0; i < count; i++) {
+        for (int32_t n = 0; n < 4; n++) {
+            self->context->ticks += 1;
+            self->timer->tick(self->timer);
+        }
+        self->dma->tick(self->dma);
     }
 }
 
