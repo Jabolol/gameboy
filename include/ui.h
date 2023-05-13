@@ -1,13 +1,13 @@
-#include "SDL2/SDL.h"
+#include <SDL2/SDL.h>
 #include "common.h"
 #include "oop.h"
-#include "SDL2/SDL_ttf.h"
+#include <SDL2/SDL_ttf.h>
 
 #ifndef __UI
     #define __UI
 
 typedef struct gameboy_aux GameboyClass;
-typedef struct ui_aux UiClass;
+typedef struct ui_aux UIClass;
 
 typedef struct ui_aux {
     /* Properties */
@@ -15,13 +15,25 @@ typedef struct ui_aux {
     GameboyClass *parent;
     int32_t screen_width;
     int32_t screen_height;
+    int32_t scale;
+    int32_t x;
+    int32_t y;
+    uint64_t tile_colors[4];
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *texture;
     SDL_Surface *screen;
+    SDL_Window *debug_window;
+    SDL_Renderer *debug_renderer;
+    SDL_Texture *debug_texture;
+    SDL_Surface *debug_screen;
     /* Methods */
-    void (*handle_events)(UiClass *);
-} UiClass;
+    void (*create_resources)(UIClass *);
+    void (*handle_events)(UIClass *);
+    void (*update_debug_window)(UIClass *);
+    void (*display_tile)(UIClass *, uint16_t, int32_t, int32_t);
+    void (*update)(UIClass *);
+} UIClass;
 
-extern const class_t *Ui;
+extern const class_t *UI;
 #endif
