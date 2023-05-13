@@ -217,8 +217,9 @@ static void fetch_data(CPUClass *self)
             break;
         }
         default: {
-            char buff[256];
-            sprintf(buff, "Unknown Addressing Mode! %d (%02X)\n",
+            char buff[64];
+            snprintf(buff, sizeof(buff),
+                "Unknown Addressing Mode! %d (%02X)\n",
                 self->context->inst->mode, self->context->opcode);
             HANDLE_ERROR(buff);
         }
@@ -375,13 +376,13 @@ static bool step(CPUClass *self)
         self->fetch_data(self);
 
         char flags[16];
-        sprintf(flags, "%c%c%c%c",
+        snprintf(flags, sizeof(flags), "%c%c%c%c",
             self->context->registers.f & (1 << 7) ? 'Z' : '-',
             self->context->registers.f & (1 << 6) ? 'N' : '-',
             self->context->registers.f & (1 << 5) ? 'H' : '-',
             self->context->registers.f & (1 << 4) ? 'C' : '-');
 
-        char instruction_data[16];
+        char instruction_data[INST_BUFF_LEN];
         self->pretty_instruction(self, instruction_data);
 
         printf(
@@ -399,9 +400,9 @@ static bool step(CPUClass *self)
             self->context->registers.l);
 
         if (self->context->inst == NULL) {
-            char buff[256];
-            sprintf(
-                buff, "Unknown Instruction! %02X\n", self->context->opcode);
+            char buff[64];
+            snprintf(buff, sizeof(buff), "Unknown Instruction! %02X\n",
+                self->context->opcode);
             HANDLE_ERROR(buff);
         }
         self->parent->debug->update(self->parent->debug);
@@ -496,82 +497,86 @@ static void request_interrupt(CPUClass *self, interrupt_t type)
     self->context->int_flags |= type;
 }
 
-static void pretty_instruction(CPUClass *self, char *buff)
+static void pretty_instruction(CPUClass *self, char buff[INST_BUFF_LEN])
 {
     instruction_t *instruction = self->context->inst;
     char *instruction_name = self->parent->instructions->lookup(
         self->parent->instructions, instruction->type);
 
     switch (instruction->mode) {
-        case AM_IMP: sprintf(buff, "%s ", instruction_name); break;
+        case AM_IMP:
+            snprintf(buff, INST_BUFF_LEN, "%s ", instruction_name);
+            break;
         case AM_R_D16:
         case AM_R_A16:
-            sprintf(buff, "%s %s,$%04X", instruction_name, LOOKUP_REG1,
-                self->context->fetched_data);
+            snprintf(buff, INST_BUFF_LEN, "%s %s,$%04X", instruction_name,
+                LOOKUP_REG1, self->context->fetched_data);
             break;
         case AM_R:
-            sprintf(buff, "%s %s", instruction_name, LOOKUP_REG1);
+            snprintf(
+                buff, INST_BUFF_LEN, "%s %s", instruction_name, LOOKUP_REG1);
             break;
         case AM_R_R:
-            sprintf(
-                buff, "%s %s,%s", instruction_name, LOOKUP_REG1, LOOKUP_REG2);
+            snprintf(buff, INST_BUFF_LEN, "%s %s,%s", instruction_name,
+                LOOKUP_REG1, LOOKUP_REG2);
             break;
         case AM_MR_R:
-            sprintf(buff, "%s (%s),%s", instruction_name, LOOKUP_REG1,
-                LOOKUP_REG2);
+            snprintf(buff, INST_BUFF_LEN, "%s (%s),%s", instruction_name,
+                LOOKUP_REG1, LOOKUP_REG2);
             break;
         case AM_MR:
-            sprintf(buff, "%s (%s)", instruction_name, LOOKUP_REG1);
+            snprintf(
+                buff, INST_BUFF_LEN, "%s (%s)", instruction_name, LOOKUP_REG1);
             break;
         case AM_R_MR:
-            sprintf(buff, "%s %s,(%s)", instruction_name, LOOKUP_REG1,
-                LOOKUP_REG2);
+            snprintf(buff, INST_BUFF_LEN, "%s %s,(%s)", instruction_name,
+                LOOKUP_REG1, LOOKUP_REG2);
             break;
         case AM_R_D8:
         case AM_R_A8:
-            sprintf(buff, "%s %s,$%02X", instruction_name, LOOKUP_REG1,
-                self->context->fetched_data & 0xFF);
+            snprintf(buff, INST_BUFF_LEN, "%s %s,$%02X", instruction_name,
+                LOOKUP_REG1, self->context->fetched_data & 0xFF);
             break;
         case AM_R_HLI:
-            sprintf(buff, "%s %s,(%s+)", instruction_name, LOOKUP_REG1,
-                LOOKUP_REG2);
+            snprintf(buff, INST_BUFF_LEN, "%s %s,(%s+)", instruction_name,
+                LOOKUP_REG1, LOOKUP_REG2);
             break;
         case AM_R_HLD:
-            sprintf(buff, "%s %s,(%s-)", instruction_name, LOOKUP_REG1,
-                LOOKUP_REG2);
+            snprintf(buff, INST_BUFF_LEN, "%s %s,(%s-)", instruction_name,
+                LOOKUP_REG1, LOOKUP_REG2);
             break;
         case AM_HLI_R:
-            sprintf(buff, "%s (%s+),%s", instruction_name, LOOKUP_REG1,
-                LOOKUP_REG2);
+            snprintf(buff, INST_BUFF_LEN, "%s (%s+),%s", instruction_name,
+                LOOKUP_REG1, LOOKUP_REG2);
             break;
         case AM_HLD_R:
-            sprintf(buff, "%s (%s-),%s", instruction_name, LOOKUP_REG1,
-                LOOKUP_REG2);
+            snprintf(buff, INST_BUFF_LEN, "%s (%s-),%s", instruction_name,
+                LOOKUP_REG1, LOOKUP_REG2);
             break;
         case AM_A8_R:
-            sprintf(buff, "%s $%02X,%s", instruction_name,
+            snprintf(buff, INST_BUFF_LEN, "%s $%02X,%s", instruction_name,
                 self->parent->bus->read(
                     self->parent->bus, self->context->registers.pc - 1),
                 LOOKUP_REG2);
             break;
         case AM_HL_SPR:
-            sprintf(buff, "%s (%s),SP+%d", instruction_name, LOOKUP_REG1,
-                self->context->fetched_data & 0xFF);
+            snprintf(buff, INST_BUFF_LEN, "%s (%s),SP+%d", instruction_name,
+                LOOKUP_REG1, self->context->fetched_data & 0xFF);
             break;
         case AM_D8:
-            sprintf(buff, "%s $%02X", instruction_name,
+            snprintf(buff, INST_BUFF_LEN, "%s $%02X", instruction_name,
                 self->context->fetched_data & 0xFF);
             break;
         case AM_D16:
-            sprintf(buff, "%s $%04X", instruction_name,
+            snprintf(buff, INST_BUFF_LEN, "%s $%04X", instruction_name,
                 self->context->fetched_data);
             break;
         case AM_MR_D8:
-            sprintf(buff, "%s (%s),$%02X", instruction_name, LOOKUP_REG1,
-                self->context->fetched_data & 0xFF);
+            snprintf(buff, INST_BUFF_LEN, "%s (%s),$%02X", instruction_name,
+                LOOKUP_REG1, self->context->fetched_data & 0xFF);
             break;
         case AM_A16_R:
-            sprintf(buff, "%s ($%04X),%s", instruction_name,
+            snprintf(buff, INST_BUFF_LEN, "%s ($%04X),%s", instruction_name,
                 self->context->fetched_data, LOOKUP_REG2);
             break;
         default: {
