@@ -39,7 +39,7 @@ typedef struct cpu_aux {
     bool (*int_check)(CPUClass *, uint16_t, interrupt_t);
     void (*request_interrupt)(CPUClass *, interrupt_t);
     void (*handle_interrupts)(CPUClass *);
-    void (*pretty_instruction)(CPUClass *, char *);
+    void (*pretty_instruction)(CPUClass *, char[INST_BUFF_LEN]);
 } CPUClass;
 
 extern const class_t *CPU;
