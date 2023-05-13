@@ -36,6 +36,13 @@
                 "Warn: %s:%d %s() - not implemented" ANSI_COLOR_RESET "\n", \
                 __FILE__, __LINE__, __func__);                              \
         } while (0)
+    #define LOG(m)                                                       \
+        do {                                                             \
+            fprintf(stdout,                                              \
+                ANSI_COLOR_MAGENTA "Log: %s:%d %s() - " ANSI_COLOR_GREEN \
+                                   "%s\n" ANSI_COLOR_RESET,              \
+                __FILE__, __LINE__, __func__, m);                        \
+        } while (0)
     #define BIT(a, n) ((a & (1 << n)) ? 1 : 0)
     #define BIT_SET(a, n, on)   \
         {                       \
@@ -69,8 +76,9 @@
     #define CB_SRL           7
     #define LOOKUP_REG1      self->str_register_lookup[instruction->register_1]
     #define LOOKUP_REG2      self->str_register_lookup[instruction->register_2]
-    #define WIDTH            1024
-    #define HEIGHT           768
+    #define WIDTH            768
+    #define HEIGHT           576
+    #define SCALE            3
     #define SERIAL_DATA      0xFF01
     #define SERIAL_CONTROL   0xFF02
     #define FIRST_LAST_SET   0b10000001
@@ -80,6 +88,10 @@
     #define TAC              0xFF07
     #define TIMER_RANGE      0xFF04 ... 0xFF07
     #define INTERRUPT_FLAG   0xFF0F
+    #define TRANSFER_REG     0xFF46
+    #define INST_BUFF_LEN    16
+    #define START_LOCATION   0x8000
+    #define LCD_Y_COORD      0xFF44
 
 typedef struct {
     bool paused;
@@ -272,5 +284,29 @@ typedef struct {
     uint8_t tma;
     uint8_t tac;
 } timer_context_t;
+
+typedef struct {
+    uint8_t y;
+    uint8_t x;
+    uint8_t tile;
+    uint8_t f_cgb_pn : 3;
+    uint8_t f_cgb_vram_bank : 1;
+    uint8_t f_pn : 1;
+    uint8_t f_x_flip : 1;
+    uint8_t f_y_flip : 1;
+    uint8_t f_bgp : 1;
+} oam_entry_t;
+
+typedef struct {
+    oam_entry_t oam_ram[40];
+    uint8_t vram[0x2000];
+} ppu_context_t;
+
+typedef struct {
+    bool active;
+    uint8_t byte;
+    uint8_t value;
+    uint8_t start_delay;
+} dma_context_t;
 
 #endif
