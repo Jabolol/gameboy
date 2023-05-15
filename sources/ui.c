@@ -8,9 +8,9 @@ static void constructor(void *ptr, va_list *args)
     self->screen_width = va_arg(*args, int32_t);
     self->scale = va_arg(*args, int32_t);
     SDL_Init(SDL_INIT_VIDEO);
-    LOG("SDL initialized\n");
+    LOG("SDL initialized");
     TTF_Init();
-    LOG("TTF initialized\n");
+    LOG("TTF initialized");
     self->create_resources(self);
 }
 
@@ -118,6 +118,16 @@ static void update(UIClass *self)
     self->update_debug_window(self);
 }
 
+static uint32_t get_ticks(void)
+{
+    return SDL_GetTicks();
+}
+
+static void delay(uint32_t ms)
+{
+    return SDL_Delay(ms);
+}
+
 const UIClass init_ui = {
     {
         ._size = sizeof(UIClass),
@@ -131,6 +141,8 @@ const UIClass init_ui = {
     .update_debug_window = update_debug_window,
     .display_tile = display_tile,
     .update = update,
+    .get_ticks = get_ticks,
+    .delay = delay,
 };
 
 const class_t *UI = (const class_t *) &init_ui;
