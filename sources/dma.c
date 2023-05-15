@@ -38,12 +38,7 @@ static void tick(DMAClass *self)
     self->context->byte += 1;
 
     self->context->active = self->context->byte < 0xA0;
-
-    if (!self->context->active) {
-        LOG("DMA completed");
-        nanosleep(&(struct timespec){.tv_sec = 2}, NULL);
-    }
-} 
+}
 
 static bool transferring(DMAClass *self)
 {
