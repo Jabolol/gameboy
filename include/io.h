@@ -12,7 +12,6 @@ typedef struct io_aux {
     class_t metadata;
     GameboyClass *parent;
     char serial_data[2];
-    uint8_t lcd_y;
     /* Methods */
     uint8_t (*read)(IOClass *, uint16_t);
     void (*write)(IOClass *, uint16_t, uint8_t);
