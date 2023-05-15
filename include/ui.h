@@ -33,6 +33,8 @@ typedef struct ui_aux {
     void (*update_debug_window)(UIClass *);
     void (*display_tile)(UIClass *, uint16_t, int32_t, int32_t);
     void (*update)(UIClass *);
+    uint32_t (*get_ticks)(void);
+    void (*delay)(uint32_t);
 } UIClass;
 
 extern const class_t *UI;
