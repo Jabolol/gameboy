@@ -13,7 +13,8 @@ static void constructor(void *ptr, va_list UNUSED *args)
     self->ui = new_class(UI, self, HEIGHT, WIDTH, SCALE);
     self->io = new_class(IO, self);
     self->debug = new_class(Debug, self);
-    self->ppu = new_class(PPU);
+    self->lcd = new_class(LCD, self);
+    self->ppu = new_class(PPU, self, FPS);
     self->dma = new_class(DMA, self);
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
         HANDLE_ERROR("failed memory allocation");
@@ -35,6 +36,7 @@ static void destructor(void *ptr)
     destroy_class(self->timer);
     destroy_class(self->ppu);
     destroy_class(self->dma);
+    destroy_class(self->lcd);
     free(self->context);
 }
 
@@ -51,11 +53,11 @@ static void *cpu_run(void *ptr)
             pthread_exit(NULL);
         }
         if (self->context->paused) {
-            SDL_Delay(10);
+            self->ui->delay(10);
             continue;
         }
         if (!self->cpu->step(self->cpu)) {
-            LOG("CPU stopped\n");
+            LOG("CPU stopped");
             break;
         }
     }
@@ -82,10 +84,16 @@ static int32_t run(GameboyClass *self, int argc, char **argv)
         HANDLE_ERROR("Failed to create thread");
     }
 
+    uint32_t prev_frame = 0;
+
     while (!self->context->die) {
         nanosleep(&(struct timespec){.tv_nsec = 1000000}, NULL);
         self->ui->handle_events(self->ui);
-        self->ui->update(self->ui);
+
+        if (prev_frame != self->ppu->context->current_frame) {
+            self->ui->update(self->ui);
+        }
+        prev_frame = self->ppu->context->current_frame;
     }
 
     pthread_join(thread, NULL);
@@ -99,6 +107,7 @@ static void cycles(GameboyClass *self, int32_t count)
         for (int32_t n = 0; n < 4; n++) {
             self->context->ticks += 1;
             self->timer->tick(self->timer);
+            self->ppu->tick(self->ppu);
         }
         self->dma->tick(self->dma);
     }
