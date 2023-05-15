@@ -21,8 +21,8 @@ static uint8_t read(IOClass *self, uint16_t address)
         case INTERRUPT_FLAG: {
             return self->parent->cpu->get_int_flags(self->parent->cpu);
         }
-        case LCD_Y_COORD: {
-            return self->lcd_y++;;
+        case LCD_RANGE: {
+            return self->parent->lcd->read(self->parent->lcd, address);
         }
         default: {
             NOT_IMPLEMENTED();
@@ -50,9 +50,8 @@ static void write(IOClass *self, uint16_t address, uint8_t value)
             self->parent->cpu->set_int_flags(self->parent->cpu, value);
             break;
         }
-        case TRANSFER_REG: {
-            LOG("DMA start");
-            self->parent->dma->start(self->parent->dma, value);
+        case LCD_RANGE: {
+            self->parent->lcd->write(self->parent->lcd, address, value);
             break;
         }
         default: {
