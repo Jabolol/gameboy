@@ -16,6 +16,7 @@
 #include "stack.h"
 #include "timer.h"
 #include "ui.h"
+#include "lcd.h"
 #include <SDL2/SDL_ttf.h>
 
 #ifndef __GAMEBOY
@@ -38,6 +39,7 @@ typedef struct gameboy_aux {
     TimerClass *timer;
     PPUClass *ppu;
     DMAClass *dma;
+    LCDClass *lcd;
     emulator_context_t *context;
     /* Methods */
     int32_t (*run)(GameboyClass *, int32_t, char **);
