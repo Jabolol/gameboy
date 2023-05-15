@@ -36,12 +36,12 @@
                 "Warn: %s:%d %s() - not implemented" ANSI_COLOR_RESET "\n", \
                 __FILE__, __LINE__, __func__);                              \
         } while (0)
-    #define LOG(m)                                                       \
-        do {                                                             \
-            fprintf(stdout,                                              \
-                ANSI_COLOR_MAGENTA "Log: %s:%d %s() - " ANSI_COLOR_GREEN \
-                                   "%s\n" ANSI_COLOR_RESET,              \
-                __FILE__, __LINE__, __func__, m);                        \
+    #define LOG(m)                                                        \
+        do {                                                              \
+            fprintf(stdout,                                               \
+                ANSI_COLOR_MAGENTA "Info: %s:%d %s() - " ANSI_COLOR_GREEN \
+                                   "%s" ANSI_COLOR_RESET "\n",            \
+                __FILE__, __LINE__, __func__, m);                         \
         } while (0)
     #define BIT(a, n) ((a & (1 << n)) ? 1 : 0)
     #define BIT_SET(a, n, on)   \
@@ -87,11 +87,26 @@
     #define TMA              0xFF06
     #define TAC              0xFF07
     #define TIMER_RANGE      0xFF04 ... 0xFF07
+    #define LCD_RANGE        0xFF40 ... 0xFF4B
     #define INTERRUPT_FLAG   0xFF0F
     #define TRANSFER_REG     0xFF46
     #define INST_BUFF_LEN    16
     #define START_LOCATION   0x8000
     #define LCD_Y_COORD      0xFF44
+    #define LCD_CONTROL      0xFF40
+    #define LCD_BG_PAL       0xFF47
+    #define LCD_S1_PAL       0xFF48
+    #define LCD_S2_PAL       0xFF49
+    #define HBLANK_OFF       3
+    #define VBLANK_OFF       4
+    #define OAM_OFF          5
+    #define LYC_OFF          6
+    #define BUFFER_SIZE      256
+    #define LINES_PER_FRAME  154
+    #define TICKS_PER_LINE   456
+    #define Y_RES            144
+    #define X_RES            160
+    #define FPS              60
 
 typedef struct {
     bool paused;
@@ -300,6 +315,9 @@ typedef struct {
 typedef struct {
     oam_entry_t oam_ram[40];
     uint8_t vram[0x2000];
+    uint32_t current_frame;
+    uint32_t line_ticks;
+    uint32_t *video_buffer;
 } ppu_context_t;
 
 typedef struct {
@@ -308,5 +326,36 @@ typedef struct {
     uint8_t value;
     uint8_t start_delay;
 } dma_context_t;
+
+typedef struct {
+    uint8_t control;
+    uint8_t status;
+    uint8_t scroll_y;
+    uint8_t scroll_x;
+    uint8_t y_coord;
+    uint8_t y_compare;
+    uint8_t dma;
+    uint8_t bg_palette;
+    uint8_t sprite_palette[2];
+    uint8_t window_y;
+    uint8_t window_x;
+    uint32_t bg_colors[4];
+    uint32_t sprite1_colors[4];
+    uint32_t sprite2_colors[4];
+} lcd_context_t;
+
+typedef enum {
+    MODE_HBLANK,
+    MODE_VBLANK,
+    MODE_OAM,
+    MODE_TRANSFER,
+} lcd_mode_t;
+
+typedef enum {
+    SS_HBLANK = (1 << HBLANK_OFF),
+    SS_VBLANK = (1 << VBLANK_OFF),
+    SS_OAM = (1 << OAM_OFF),
+    SS_LYC = (1 << LYC_OFF),
+} stat_src_t;
 
 #endif
