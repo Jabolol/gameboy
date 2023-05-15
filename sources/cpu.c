@@ -13,8 +13,6 @@ static void constructor(void *ptr, va_list *args)
     *((int16_t *) &self->context->registers.b) = 0x1300;
     *((int16_t *) &self->context->registers.d) = 0xD800;
     *((int16_t *) &self->context->registers.h) = 0x4D01;
-    self->context->ie_register = 0;
-    self->context->int_flags = 0;
     self->context->int_master_enabled = false;
     self->context->enabling_ime = false;
     self->parent->timer->context->div = 0xABCC;
@@ -370,43 +368,21 @@ static void set_register8(CPUClass *self, register_type_t reg, uint8_t val)
 static bool step(CPUClass *self)
 {
     if (!self->context->halted) {
+#ifdef __CPU_DEBUG
         uint16_t pc = self->context->registers.pc;
+#endif
         self->fetch_instructions(self);
         self->parent->cycles(self->parent, 1);
         self->fetch_data(self);
-
-        char flags[16];
-        snprintf(flags, sizeof(flags), "%c%c%c%c",
-            self->context->registers.f & (1 << 7) ? 'Z' : '-',
-            self->context->registers.f & (1 << 6) ? 'N' : '-',
-            self->context->registers.f & (1 << 5) ? 'H' : '-',
-            self->context->registers.f & (1 << 4) ? 'C' : '-');
-
-        char instruction_data[INST_BUFF_LEN];
-        self->pretty_instruction(self, instruction_data);
-
-        printf(
-            "%08llX - %04X: %-12s (%02X %02X %02X) A: %02X F: %s BC: %02X%02X "
-            "DE: "
-            "%02X%02X "
-            "HL: %02X%02X\n",
-            self->parent->context->ticks, pc, instruction_data,
-            self->context->opcode,
-            self->parent->bus->read(self->parent->bus, pc + 1),
-            self->parent->bus->read(self->parent->bus, pc + 2),
-            self->context->registers.a, flags, self->context->registers.b,
-            self->context->registers.c, self->context->registers.d,
-            self->context->registers.e, self->context->registers.h,
-            self->context->registers.l);
-
+#ifdef __CPU_DEBUG
+        self->parent->debug->cpu_step(self->parent->debug, pc);
+#endif
         if (self->context->inst == NULL) {
             char buff[64];
             snprintf(buff, sizeof(buff), "Unknown Instruction! %02X\n",
                 self->context->opcode);
             HANDLE_ERROR(buff);
         }
-        self->parent->debug->update(self->parent->debug);
-        self->parent->debug->print(self->parent->debug);
         self->execute(self);
     } else {
         self->parent->cycles(self->parent, 1);
