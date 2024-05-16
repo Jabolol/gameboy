@@ -16,31 +16,21 @@ NC = \033[0m
 all: $(EXEC)
 
 $(EXEC): $(OBJ)
-	@echo "$(YELLOW)Linking...$(NC)"
-	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
-	@echo "$(GREEN)Done!$(NC)"
+	@$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 %.o: %.c
-	@echo "$(YELLOW)Compiling...$(NC)"
-	$(CC) $(CFLAGS) -c $< -o $@
-	@echo "$(GREEN)Done!$(NC)"
+	@$(CC) $(CFLAGS) -c $< -o $@
 
-%.d: %.c
-	@echo "$(YELLOW)Generating dependencies...$(NC)"
-	$(CC) -MM $< -MT '$(subst .d,.o,$@)' > $@
-	@echo "$(GREEN)Done!$(NC)"
-
--include $(DEP)
+%.o: %.c
+	@echo "$(CYAN)$<$(NC) ==> $(GREEN)$@$(NC)"
+	@$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	@echo "$(YELLOW)Cleaning...$(NC)"
-	$(RM) $(OBJ) $(DEP)
-	@echo "$(GREEN)Done!$(NC)"
+	@echo "$(RED)Cleaning object files and dependencies$(NC)"
+	@$(RM) $(OBJ) $(DEP)
 
 fclean: clean
-	@echo "$(YELLOW)Removing executable and generated files...$(NC)"
-	$(RM) $(EXEC)
-	@echo "$(GREEN)Done!$(NC)"
+	@$(RM) $(EXEC)
 
 re: fclean all
 

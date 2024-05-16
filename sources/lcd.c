@@ -47,7 +47,7 @@ static void write(LCDClass *self, uint16_t address, uint8_t value)
     switch (address) {
         case LCD_BG_PAL: self->update(self, value, 0); break;
         case LCD_S1_PAL: self->update(self, value & 0b11111100, 1); break;
-        case LCD_S2_PAL: self->update(self, value & 0b11111100, 1); break;
+        case LCD_S2_PAL: self->update(self, value & 0b11111100, 2); break;
     }
 }
 

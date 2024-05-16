@@ -99,14 +99,14 @@ static void proc_rrca(CPUClass *cpu)
 static void proc_rla(CPUClass *cpu)
 {
     uint8_t u = cpu->context->registers.a;
-    uint8_t cf = BIT(cpu->context->registers.f, 4);
+    uint8_t cf = CPU_FLAG_C;
     uint8_t c = (u >> 7) & 1;
 
     cpu->context->registers.a = (u << 1) | cf;
     cpu->set_flags(cpu, 0, 0, 0, c);
 }
 
-static void proc_stop(CPUClass *cpu)
+static void proc_stop(UNUSED CPUClass *cpu)
 {
     HANDLE_ERROR("Stopping the CPU");
 }
@@ -116,18 +116,14 @@ static void proc_daa(CPUClass *cpu)
     uint8_t u = 0;
     int32_t fc = 0;
 
-    if (BIT(cpu->context->registers.f, 5)
-        || (!BIT(cpu->context->registers.f, 6)
-            && (cpu->context->registers.a & 0xF) > 9)) {
+    if (CPU_FLAG_H || (!CPU_FLAG_N && (cpu->context->registers.a & 0xF) > 9)) {
         u = 6;
     }
-    if (BIT(cpu->context->registers.f, 4)
-        || (!BIT(cpu->context->registers.f, 6)
-            && cpu->context->registers.a > 0x99)) {
+    if (CPU_FLAG_C || (!CPU_FLAG_N && cpu->context->registers.a > 0x99)) {
         u |= 0x60;
         fc = 1;
     }
-    cpu->context->registers.a += BIT(cpu->context->registers.f, 6) ? -u : u;
+    cpu->context->registers.a += CPU_FLAG_N ? -u : u;
     cpu->set_flags(cpu, cpu->context->registers.a == 0, -1, 0, fc);
 }
 
@@ -144,7 +140,7 @@ static void proc_scf(CPUClass *cpu)
 
 static void proc_ccf(CPUClass *cpu)
 {
-    cpu->set_flags(cpu, -1, 0, 0, BIT(cpu->context->registers.f, 4) ^ 1);
+    cpu->set_flags(cpu, -1, 0, 0, CPU_FLAG_C ^ 1);
 }
 
 static void proc_halt(CPUClass *cpu)
@@ -154,7 +150,7 @@ static void proc_halt(CPUClass *cpu)
 
 static void proc_rra(CPUClass *cpu)
 {
-    uint8_t carry = BIT(cpu->context->registers.f, 4);
+    uint8_t carry = CPU_FLAG_C;
     uint8_t new_c = cpu->context->registers.a & 1;
 
     cpu->context->registers.a >>= 1;
@@ -212,7 +208,7 @@ static void proc_cb(CPUClass *cpu)
         }
     }
 
-    bool flag_c = BIT(cpu->context->registers.f, 4);
+    bool flag_c = CPU_FLAG_C;
 
     switch (bit) {
         case CB_RLC: {
@@ -481,7 +477,7 @@ static void proc_adc(CPUClass *cpu)
 {
     uint16_t u = cpu->context->fetched_data;
     uint16_t a = cpu->context->registers.a;
-    uint16_t c = BIT(cpu->context->registers.f, 4);
+    uint16_t c = CPU_FLAG_C;
 
     cpu->context->registers.a = (a + u + c) & 0xFF;
     cpu->set_flags(cpu, cpu->context->registers.a == 0, 0,
@@ -509,20 +505,19 @@ static void proc_sub(CPUClass *cpu)
 
 static void proc_sbc(CPUClass *cpu)
 {
-    uint8_t value =
-        cpu->context->fetched_data + BIT(cpu->context->registers.f, 4);
+    uint8_t value = cpu->context->fetched_data + CPU_FLAG_C;
     int32_t z =
         (cpu->read_register(cpu, cpu->context->inst->register_1) - value) == 0;
     int32_t h =
         ((int32_t) cpu->read_register(cpu, cpu->context->inst->register_1)
             & 0xF)
             - ((int32_t) cpu->context->fetched_data & 0xF)
-            - ((int32_t) BIT(cpu->context->registers.f, 4))
+            - ((int32_t) CPU_FLAG_C)
         < 0;
     int32_t c =
         ((int32_t) cpu->read_register(cpu, cpu->context->inst->register_1))
             - ((int32_t) cpu->context->fetched_data)
-            - ((int32_t) BIT(cpu->context->registers.f, 4))
+            - ((int32_t) CPU_FLAG_C)
         < 0;
 
     cpu->set_register(cpu, cpu->context->inst->register_1,

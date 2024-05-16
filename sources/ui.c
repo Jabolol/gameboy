@@ -20,6 +20,11 @@ static void create_resources(UIClass *self)
         &self->window, &self->renderer);
     SDL_CreateWindowAndRenderer(16 * 8 * self->scale, 32 * 8 * self->scale, 0,
         &self->debug_window, &self->debug_renderer);
+    self->screen =
+        SDL_CreateRGBSurface(0, self->screen_width, self->screen_height, 32,
+            0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    self->texture = SDL_CreateTexture(self->renderer, SDL_PIXELFORMAT_ARGB8888,
+        SDL_TEXTUREACCESS_STREAMING, self->screen_width, self->screen_height);
     self->debug_screen =
         SDL_CreateRGBSurface(0, (16 * 8 * self->scale) + (16 * self->scale),
             (32 * 8 * self->scale) + (64 * self->scale), 32, 0x00FF0000,
@@ -38,8 +43,10 @@ static void destructor(void *ptr)
     UIClass *self = (UIClass *) ptr;
     SDL_DestroyWindow(self->window);
     SDL_DestroyRenderer(self->renderer);
+    SDL_DestroyTexture(self->texture);
     SDL_DestroyTexture(self->debug_texture);
     SDL_FreeSurface(self->debug_screen);
+    SDL_FreeSurface(self->screen);
     SDL_DestroyWindow(self->debug_window);
     SDL_DestroyRenderer(self->debug_renderer);
     TTF_Quit();
@@ -115,6 +122,27 @@ static void display_tile(
 
 static void update(UIClass *self)
 {
+    uint32_t *buffer = self->parent->ppu->context->video_buffer;
+
+    for (int32_t line_num = 0; line_num < Y_RES; line_num++) {
+        for (int32_t x = 0; x < X_RES; x++) {
+            SDL_FillRect(self->screen,
+                &(SDL_Rect){
+                    .x = x * self->scale,
+                    .y = line_num * self->scale,
+                    .w = self->scale,
+                    .h = self->scale,
+                },
+                buffer[x + (line_num * X_RES)]);
+        }
+    }
+
+    SDL_UpdateTexture(
+        self->texture, NULL, self->screen->pixels, self->screen->pitch);
+    SDL_RenderClear(self->renderer);
+    SDL_RenderCopy(self->renderer, self->texture, NULL, NULL);
+    SDL_RenderPresent(self->renderer);
+
     self->update_debug_window(self);
 }
 

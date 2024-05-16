@@ -10,13 +10,14 @@
 #include "debug.h"
 #include "dma.h"
 #include "io.h"
+#include "lcd.h"
 #include "oop.h"
+#include "pipeline.h"
 #include "ppu.h"
 #include "ram.h"
 #include "stack.h"
 #include "timer.h"
 #include "ui.h"
-#include "lcd.h"
 #include <SDL2/SDL_ttf.h>
 
 #ifndef __GAMEBOY
@@ -40,6 +41,7 @@ typedef struct gameboy_aux {
     PPUClass *ppu;
     DMAClass *dma;
     LCDClass *lcd;
+    PipelineClass *pipeline;
     emulator_context_t *context;
     /* Methods */
     int32_t (*run)(GameboyClass *, int32_t, char **);

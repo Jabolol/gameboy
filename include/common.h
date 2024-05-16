@@ -107,6 +107,25 @@
     #define Y_RES            144
     #define X_RES            160
     #define FPS              60
+    #define MAX_FIFO_ITEMS   8
+    #define OAM_ENTRIES      40
+    #define MAX_SPRITES      10
+    #define LCDC_BGW_ENABLE  (BIT(self->parent->lcd->context->control, 0))
+    #define LCDC_OBJ_ENABLE  (BIT(self->parent->lcd->context->control, 1))
+    #define LCDC_OBJ_HEIGHT \
+        (BIT(self->parent->lcd->context->control, 2) ? 16 : 8)
+    #define LCDC_BG_MAP_AREA \
+        (BIT(self->parent->lcd->context->control, 3) ? 0x9C00 : 0x9800)
+    #define LCDC_BGW_DATA_AREA \
+        (BIT(self->parent->lcd->context->control, 4) ? 0x8000 : 0x8800)
+    #define LCDC_WIN_ENABLE (BIT(self->parent->lcd->context->control, 5))
+    #define LCDC_WIN_MAP_AREA \
+        (BIT(self->parent->lcd->context->control, 6) ? 0x9C00 : 0x9800)
+    #define LCDC_LCD_ENABLE (BIT(self->parent->lcd->context->control, 7))
+    #define CPU_FLAG_Z      BIT(cpu->context->registers.f, 7)
+    #define CPU_FLAG_N      BIT(cpu->context->registers.f, 6)
+    #define CPU_FLAG_H      BIT(cpu->context->registers.f, 5)
+    #define CPU_FLAG_C      BIT(cpu->context->registers.f, 4)
 
 typedef struct {
     bool paused;
@@ -312,9 +331,55 @@ typedef struct {
     uint8_t f_bgp : 1;
 } oam_entry_t;
 
+typedef struct oam_line_entry {
+    oam_entry_t entry;
+    struct oam_line_entry *next;
+} oam_line_entry_t;
+
+typedef enum {
+    FS_TILE,
+    FS_DATA0,
+    FS_DATA1,
+    FS_IDLE,
+    FS_PUSH,
+} fetch_state_t;
+
+typedef struct fifo_entry fifo_entry_t;
+
+typedef struct fifo_entry {
+    fifo_entry_t *next;
+    uint32_t value;
+} fifo_entry_t;
+
 typedef struct {
-    oam_entry_t oam_ram[40];
+    fifo_entry_t *head;
+    fifo_entry_t *tail;
+    uint32_t size;
+} fifo_t;
+
+typedef struct {
+    fetch_state_t state;
+    fifo_t pixel_fifo;
+    uint8_t line_x;
+    uint8_t pushed_x;
+    uint8_t fetch_x;
+    uint8_t bg_fetch_data[3];
+    uint8_t fetch_entry_data[6];
+    uint8_t map_y;
+    uint8_t map_x;
+    uint8_t tile_y;
+    uint8_t fifo_x;
+} fifo_context_t;
+
+typedef struct {
+    oam_entry_t oam_ram[OAM_ENTRIES];
     uint8_t vram[0x2000];
+    fifo_context_t *pixel_context;
+    uint8_t line_sprite_count;
+    oam_line_entry_t *line_sprites;
+    oam_line_entry_t line_entry_array[MAX_SPRITES];
+    uint8_t fetch_entry_count;
+    oam_entry_t fetched_entries[3];
     uint32_t current_frame;
     uint32_t line_ticks;
     uint32_t *video_buffer;

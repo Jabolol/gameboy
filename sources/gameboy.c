@@ -16,6 +16,7 @@ static void constructor(void *ptr, va_list UNUSED *args)
     self->lcd = new_class(LCD, self);
     self->ppu = new_class(PPU, self, FPS);
     self->dma = new_class(DMA, self);
+    self->pipeline = new_class(Pipeline, self);
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
         HANDLE_ERROR("failed memory allocation");
     }
@@ -37,6 +38,7 @@ static void destructor(void *ptr)
     destroy_class(self->ppu);
     destroy_class(self->dma);
     destroy_class(self->lcd);
+    destroy_class(self->pipeline);
     free(self->context);
 }
 

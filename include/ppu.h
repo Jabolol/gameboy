@@ -28,6 +28,8 @@ typedef struct ppu_aux {
     void (*mode_vblank)(PPUClass *);
     void (*mode_oam)(PPUClass *);
     void (*mode_transfer)(PPUClass *);
+    /* Sprites */
+    void (*load_line_sprites)(PPUClass *);
 } PPUClass;
 
 extern const class_t *PPU;

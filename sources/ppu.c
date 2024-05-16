@@ -10,16 +10,24 @@ static void constructor(void *ptr, va_list *args)
                Y_RES * X_RES, sizeof(*self->context->video_buffer))))) {
         HANDLE_ERROR("failed memory allocation");
     }
+    if (!((self->context->pixel_context =
+                calloc(1, sizeof(*self->context->pixel_context))))) {
+        HANDLE_ERROR("failed memory allocation");
+    }
     self->parent = va_arg(*args, GameboyClass *);
     self->target_time = 1000 / va_arg(*args, size_t);
     self->parent->lcd->context->status &= ~0b11;
     self->parent->lcd->context->status |= MODE_OAM;
+    self->context->pixel_context->state = FS_TILE;
+    self->context->line_sprites = 0;
+    self->context->fetch_entry_count = 0;
 }
 
 static void destructor(void *ptr)
 {
     PPUClass *self = (PPUClass *) ptr;
     free(self->context->video_buffer);
+    free(self->context->pixel_context);
     free(self->context);
 }
 
@@ -131,19 +139,94 @@ static void mode_vblank(PPUClass *self)
     }
 }
 
+static void load_line_sprites(PPUClass *self)
+{
+    int32_t current_y = self->parent->lcd->context->y_coord;
+    uint8_t sprite_height = LCDC_OBJ_HEIGHT;
+
+    memset(self->context->line_entry_array, 0,
+        sizeof(self->context->line_entry_array));
+
+    for (int32_t i = 0; i < OAM_ENTRIES; i++) {
+        oam_entry_t *e = &self->context->oam_ram[i];
+        bool visible =
+            e->y <= current_y + 16 && e->y + sprite_height > current_y + 16;
+
+        if (!e->x) {
+            continue;
+        }
+
+        if (self->context->line_sprite_count >= MAX_SPRITES) {
+            break;
+        }
+
+        if (visible) {
+            oam_line_entry_t *entry =
+                &self->context
+                     ->line_entry_array[self->context->line_sprite_count++];
+
+            entry->entry = *e;
+            entry->next = NULL;
+
+            if (!self->context->line_sprites
+                || self->context->line_sprites->entry.x > e->x) {
+                entry->next = self->context->line_sprites;
+                self->context->line_sprites = entry;
+                continue;
+            }
+
+            oam_line_entry_t *line_entry = self->context->line_sprites;
+            oam_line_entry_t *prev = line_entry;
+
+            while (line_entry) {
+                if (line_entry->entry.x > e->x) {
+                    prev->next = entry;
+                    entry->next = line_entry;
+                    break;
+                }
+                if (!line_entry->next) {
+                    line_entry->next = entry;
+                    break;
+                }
+                prev = line_entry;
+                line_entry = line_entry->next;
+            }
+        }
+    }
+}
+
 static void mode_oam(PPUClass *self)
 {
     if (self->context->line_ticks >= 80) {
         self->parent->lcd->context->status &= ~0b11;
         self->parent->lcd->context->status |= MODE_TRANSFER;
+        self->context->pixel_context->state = FS_TILE;
+        self->context->pixel_context->line_x = 0;
+        self->context->pixel_context->fetch_x = 0;
+        self->context->pixel_context->pushed_x = 0;
+        self->context->pixel_context->fifo_x = 0;
+    }
+
+    if (self->context->line_ticks == 1) {
+        self->context->line_sprites = 0;
+        self->context->line_sprite_count = 0;
+        self->load_line_sprites(self);
     }
 }
 
 static void mode_transfer(PPUClass *self)
 {
-    if (self->context->line_ticks >= 80 + 172) {
+    self->parent->pipeline->process(self->parent->pipeline);
+
+    if (self->context->pixel_context->pushed_x >= X_RES) {
+        self->parent->pipeline->fifo_reset(self->parent->pipeline);
         self->parent->lcd->context->status &= ~0b11;
         self->parent->lcd->context->status |= MODE_HBLANK;
+
+        if (self->parent->lcd->context->status & SS_HBLANK) {
+            self->parent->cpu->request_interrupt(
+                self->parent->cpu, IT_LCD_STAT);
+        }
     }
 }
 
@@ -164,6 +247,7 @@ const PPUClass init_ppu = {
     .mode_vblank = mode_vblank,
     .mode_oam = mode_oam,
     .mode_transfer = mode_transfer,
+    .load_line_sprites = load_line_sprites,
 };
 
 const class_t *PPU = (const class_t *) &init_ppu;
