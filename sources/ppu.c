@@ -83,6 +83,14 @@ static void tick(PPUClass *self)
 
 static void increment_y(PPUClass *self)
 {
+    if (self->parent->pipeline->visible(self->parent->pipeline)
+        && self->parent->lcd->context->y_coord
+            >= self->parent->lcd->context->window_y
+        && self->parent->lcd->context->y_coord
+            < self->parent->lcd->context->window_y + Y_RES) {
+        self->parent->ppu->context->window_line += 1;
+    }
+
     self->parent->lcd->context->y_coord += 1;
 
     if (self->parent->lcd->context->y_coord
@@ -147,6 +155,7 @@ static void mode_vblank(PPUClass *self)
             self->parent->lcd->context->status &= ~0b11;
             self->parent->lcd->context->status |= MODE_OAM;
             self->parent->lcd->context->y_coord = 0;
+            self->parent->ppu->context->window_line = 0;
         }
         self->context->line_ticks = 0;
     }
