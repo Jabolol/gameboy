@@ -79,6 +79,7 @@
     #define WIDTH            768
     #define HEIGHT           576
     #define SCALE            3
+    #define JOYPAD           0xFF00
     #define SERIAL_DATA      0xFF01
     #define SERIAL_CONTROL   0xFF02
     #define FIRST_LAST_SET   0b10000001
@@ -380,6 +381,7 @@ typedef struct {
     oam_line_entry_t line_entry_array[MAX_SPRITES];
     uint8_t fetch_entry_count;
     oam_entry_t fetched_entries[3];
+    uint8_t window_line;
     uint32_t current_frame;
     uint32_t line_ticks;
     uint32_t *video_buffer;
@@ -422,5 +424,22 @@ typedef enum {
     SS_OAM = (1 << OAM_OFF),
     SS_LYC = (1 << LYC_OFF),
 } stat_src_t;
+
+typedef struct {
+    bool start : 1;
+    bool select : 1;
+    bool a : 1;
+    bool b : 1;
+    bool up : 1;
+    bool down : 1;
+    bool left : 1;
+    bool right : 1;
+} joypad_state_t;
+
+typedef struct {
+    bool button_selected;
+    bool direction_selected;
+    joypad_state_t state;
+} joypad_context_t;
 
 #endif
