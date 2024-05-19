@@ -9,6 +9,9 @@ static void constructor(void *ptr, va_list *args)
 static uint8_t read(IOClass *self, uint16_t address)
 {
     switch (address) {
+        case JOYPAD: {
+            return self->parent->joypad->output(self->parent->joypad);
+        }
         case SERIAL_DATA: {
             return self->serial_data[0];
         }
@@ -34,6 +37,10 @@ static uint8_t read(IOClass *self, uint16_t address)
 static void write(IOClass *self, uint16_t address, uint8_t value)
 {
     switch (address) {
+        case JOYPAD: {
+            self->parent->joypad->select(self->parent->joypad, value);
+            break;
+        }
         case SERIAL_DATA: {
             self->serial_data[0] = value;
             break;
