@@ -10,13 +10,14 @@ static void constructor(void *ptr, va_list UNUSED *args)
     self->timer = new_class(Timer, self);
     self->cpu = new_class(CPU, self);
     self->stack = new_class(Stack, self);
-    self->ui = new_class(UI, self, HEIGHT, WIDTH, SCALE);
+    self->ui = new_class(UI, self, Y_RES * SCALE, X_RES * SCALE, SCALE);
     self->io = new_class(IO, self);
     self->debug = new_class(Debug, self);
     self->lcd = new_class(LCD, self);
     self->ppu = new_class(PPU, self, FPS);
     self->dma = new_class(DMA, self);
     self->pipeline = new_class(Pipeline, self);
+    self->joypad = new_class(Joypad, self);
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
         HANDLE_ERROR("failed memory allocation");
     }
@@ -39,6 +40,7 @@ static void destructor(void *ptr)
     destroy_class(self->dma);
     destroy_class(self->lcd);
     destroy_class(self->pipeline);
+    destroy_class(self->joypad);
     free(self->context);
 }
 

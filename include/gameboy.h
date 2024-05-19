@@ -10,6 +10,7 @@
 #include "debug.h"
 #include "dma.h"
 #include "io.h"
+#include "joypad.h"
 #include "lcd.h"
 #include "oop.h"
 #include "pipeline.h"
@@ -42,6 +43,7 @@ typedef struct gameboy_aux {
     DMAClass *dma;
     LCDClass *lcd;
     PipelineClass *pipeline;
+    JoypadClass *joypad;
     emulator_context_t *context;
     /* Methods */
     int32_t (*run)(GameboyClass *, int32_t, char **);
