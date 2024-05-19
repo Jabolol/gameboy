@@ -31,6 +31,9 @@ static uint8_t read(LCDClass *self, uint16_t address)
     uint8_t offset = address - LCD_CONTROL;
     uint8_t *pointer = (uint8_t *) self->context;
 
+    if (offset > sizeof(*self->context) - 1) {
+        HANDLE_ERROR("critical memory overflow");
+    }
     return pointer[offset];
 }
 
@@ -38,6 +41,10 @@ static void write(LCDClass *self, uint16_t address, uint8_t value)
 {
     uint8_t offset = address - LCD_CONTROL;
     uint8_t *pointer = (uint8_t *) self->context;
+
+    if (offset > sizeof(*self->context) - 1) {
+        HANDLE_ERROR("critical memory overflow");
+    }
 
     pointer[offset] = value;
 

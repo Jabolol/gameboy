@@ -38,6 +38,10 @@ static void oam_write(PPUClass *self, uint16_t address, uint8_t value)
     }
 
     uint8_t *bytes = (uint8_t *) self->context->oam_ram;
+
+    if (address > sizeof(self->context->oam_ram) - 1) {
+        HANDLE_ERROR("critical memory overflow");
+    }
     bytes[address] = value;
 }
 
@@ -48,6 +52,10 @@ static uint8_t oam_read(PPUClass *self, uint16_t address)
     }
 
     uint8_t *bytes = (uint8_t *) self->context->oam_ram;
+
+    if (address > sizeof(self->context->oam_ram) - 1) {
+        HANDLE_ERROR("critical memory overflow");
+    }
     return bytes[address];
 }
 
@@ -114,6 +122,11 @@ static void mode_hblank(PPUClass *self)
 
         if (time < self->target_time) {
             self->parent->ui->delay(self->target_time - time);
+        }
+
+        if (end - self->start_timer >= 1000) {
+            self->start_timer = end;
+            self->frame_count = 0;
         }
 
         self->frame_count += 1;
