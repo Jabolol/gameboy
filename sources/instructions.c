@@ -516,8 +516,7 @@ static void proc_sbc(CPUClass *cpu)
         < 0;
     int32_t c =
         ((int32_t) cpu->read_register(cpu, cpu->context->inst->register_1))
-            - ((int32_t) cpu->context->fetched_data)
-            - ((int32_t) CPU_FLAG_C)
+            - ((int32_t) cpu->context->fetched_data) - ((int32_t) CPU_FLAG_C)
         < 0;
 
     cpu->set_register(cpu, cpu->context->inst->register_1,
