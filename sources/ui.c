@@ -16,26 +16,21 @@ static void constructor(void *ptr, va_list *args)
 
 static void create_resources(UIClass *self)
 {
-    SDL_CreateWindowAndRenderer(self->screen_width, self->screen_height, 0,
-        &self->window, &self->renderer);
-    SDL_CreateWindowAndRenderer(16 * 8 * self->scale, 32 * 8 * self->scale, 0,
-        &self->debug_window, &self->debug_renderer);
+    int32_t total_width = self->screen_width + 16 * 8 * self->scale;
+    int32_t total_height = self->screen_height;
+    SDL_CreateWindowAndRenderer(
+        total_width, total_height, 0, &self->window, &self->renderer);
     self->screen =
         SDL_CreateRGBSurface(0, self->screen_width, self->screen_height, 32,
             0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
     self->texture = SDL_CreateTexture(self->renderer, SDL_PIXELFORMAT_ARGB8888,
         SDL_TEXTUREACCESS_STREAMING, self->screen_width, self->screen_height);
     self->debug_screen =
-        SDL_CreateRGBSurface(0, (16 * 8 * self->scale) + (16 * self->scale),
-            (32 * 8 * self->scale) + (64 * self->scale), 32, 0x00FF0000,
-            0x0000FF00, 0x000000FF, 0xFF000000);
-    self->debug_texture = SDL_CreateTexture(self->debug_renderer,
+        SDL_CreateRGBSurface(0, 16 * 8 * self->scale, 32 * 8 * self->scale, 32,
+            0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    self->debug_texture = SDL_CreateTexture(self->renderer,
         SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-        (16 * 8 * self->scale) + (16 * self->scale),
-        (32 * 8 * self->scale) + (64 * self->scale));
-    SDL_GetWindowPosition(self->window, &self->x, &self->y);
-    SDL_SetWindowPosition(
-        self->debug_window, self->x + self->screen_width + 10, self->y);
+        16 * 8 * self->scale, 32 * 8 * self->scale);
 }
 
 static void destructor(void *ptr)
@@ -47,8 +42,6 @@ static void destructor(void *ptr)
     SDL_DestroyTexture(self->debug_texture);
     SDL_FreeSurface(self->debug_screen);
     SDL_FreeSurface(self->screen);
-    SDL_DestroyWindow(self->debug_window);
-    SDL_DestroyRenderer(self->debug_renderer);
     TTF_Quit();
     SDL_Quit();
 }
@@ -61,6 +54,12 @@ static void handle_events(UIClass *self)
         if (event.type == SDL_WINDOWEVENT
             && event.window.event == SDL_WINDOWEVENT_CLOSE) {
             self->parent->context->die = true;
+        }
+        if (event.type == SDL_KEYDOWN) {
+            self->on_key(self, true, event.key.keysym.sym);
+        }
+        if (event.type == SDL_KEYUP) {
+            self->on_key(self, false, event.key.keysym.sym);
         }
     }
 }
@@ -78,20 +77,14 @@ static void update_debug_window(UIClass *self)
 
     for (int32_t y = 0; y < 24; y++) {
         for (int32_t x = 0; x < 16; x++) {
-            self->display_tile(self, tile_num, x_draw + (x * self->scale),
-                y_draw + (y * self->scale));
-            x_draw += (8 * self->scale);
+            self->display_tile(self, tile_num, x_draw + (x * 8 * self->scale),
+                y_draw + (y * 8 * self->scale));
             tile_num += 1;
         }
-        y_draw += (8 * self->scale);
-        x_draw = 0;
     }
 
     SDL_UpdateTexture(self->debug_texture, NULL, self->debug_screen->pixels,
         self->debug_screen->pitch);
-    SDL_RenderClear(self->debug_renderer);
-    SDL_RenderCopy(self->debug_renderer, self->debug_texture, NULL, NULL);
-    SDL_RenderPresent(self->debug_renderer);
 }
 
 static void display_tile(
@@ -140,10 +133,13 @@ static void update(UIClass *self)
     SDL_UpdateTexture(
         self->texture, NULL, self->screen->pixels, self->screen->pitch);
     SDL_RenderClear(self->renderer);
-    SDL_RenderCopy(self->renderer, self->texture, NULL, NULL);
-    SDL_RenderPresent(self->renderer);
-
+    SDL_RenderCopy(self->renderer, self->texture, NULL,
+        &(SDL_Rect){0, 0, self->screen_width, self->screen_height});
     self->update_debug_window(self);
+    SDL_RenderCopy(self->renderer, self->debug_texture, NULL,
+        &(SDL_Rect){self->screen_width, 0, 16 * 8 * self->scale,
+            32 * 8 * self->scale});
+    SDL_RenderPresent(self->renderer);
 }
 
 static uint32_t get_ticks(void)
@@ -154,6 +150,48 @@ static uint32_t get_ticks(void)
 static void delay(uint32_t ms)
 {
     return SDL_Delay(ms);
+}
+
+static void on_key(UIClass *self, bool down, SDL_Keycode code)
+{
+    switch (code) {
+        case SDLK_a: {
+            self->parent->joypad->context->state.a = down;
+            break;
+        }
+        case SDLK_b: {
+            self->parent->joypad->context->state.b = down;
+            break;
+        }
+        case SDLK_RETURN: {
+            self->parent->joypad->context->state.start = down;
+            break;
+        }
+        case SDLK_TAB: {
+            self->parent->joypad->context->state.select = down;
+            break;
+        }
+        case SDLK_UP: {
+            self->parent->joypad->context->state.up = down;
+            break;
+        }
+        case SDLK_DOWN: {
+            self->parent->joypad->context->state.down = down;
+            break;
+        }
+        case SDLK_LEFT: {
+            self->parent->joypad->context->state.left = down;
+            break;
+        }
+        case SDLK_RIGHT: {
+            self->parent->joypad->context->state.right = down;
+            break;
+        }
+        case SDLK_q: {
+            self->parent->context->die = true;
+            break;
+        }
+    }
 }
 
 const UIClass init_ui = {
@@ -171,6 +209,7 @@ const UIClass init_ui = {
     .update = update,
     .get_ticks = get_ticks,
     .delay = delay,
+    .on_key = on_key,
 };
 
 const class_t *UI = (const class_t *) &init_ui;

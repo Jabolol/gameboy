@@ -35,6 +35,7 @@ typedef struct ui_aux {
     void (*update)(UIClass *);
     uint32_t (*get_ticks)(void);
     void (*delay)(uint32_t);
+    void (*on_key)(UIClass *, bool, SDL_Keycode);
 } UIClass;
 
 extern const class_t *UI;
