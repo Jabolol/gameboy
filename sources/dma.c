@@ -17,6 +17,7 @@ static void destructor(void *ptr)
 
 static void start(DMAClass *self, uint8_t value)
 {
+    self->context->byte = 0;
     self->context->active = true;
     self->context->start_delay = 2;
     self->context->value = value;
