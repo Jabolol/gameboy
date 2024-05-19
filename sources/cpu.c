@@ -365,7 +365,6 @@ static void set_register8(CPUClass *self, register_type_t reg, uint8_t val)
     }
 }
 
-#define __CPU_DEBUG 0
 static bool step(CPUClass *self)
 {
     if (!self->context->halted) {
