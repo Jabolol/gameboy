@@ -219,6 +219,8 @@ static void fetch(PipelineClass *self)
                     self->parent->ppu->context->pixel_context
                         ->bg_fetch_data[0] += 128;
                 }
+
+                self->load_window_tile(self);
             }
 
             if (LCDC_OBJ_ENABLE && self->parent->ppu->context->line_sprites) {
@@ -317,6 +319,46 @@ static void fifo_reset(PipelineClass *self)
     self->parent->ppu->context->pixel_context->pixel_fifo.head = NULL;
 }
 
+static void load_window_tile(PipelineClass *self)
+{
+    if (!self->visible(self)) {
+        return;
+    }
+
+    uint8_t window_y = self->parent->lcd->context->window_y;
+
+    if (self->parent->ppu->context->pixel_context->fetch_x + 7
+            >= self->parent->lcd->context->window_x
+        && self->parent->ppu->context->pixel_context->fetch_x + 7
+            < self->parent->lcd->context->window_x + Y_RES + 14) {
+        if (self->parent->lcd->context->y_coord >= window_y
+            && self->parent->lcd->context->y_coord < window_y + X_RES) {
+            uint8_t tile_y = self->parent->ppu->context->window_line / 8;
+
+            self->parent->ppu->context->pixel_context->bg_fetch_data[0] =
+                self->parent->bus->read(self->parent->bus,
+                    LCDC_WIN_MAP_AREA
+                        + ((self->parent->ppu->context->pixel_context->fetch_x
+                               + 7 - self->parent->lcd->context->window_x)
+                            / 8)
+                        + (tile_y * 32));
+
+            if (LCDC_BGW_DATA_AREA == 0x8800) {
+                self->parent->ppu->context->pixel_context->bg_fetch_data[0] +=
+                    128;
+            }
+        }
+    }
+}
+
+static bool visible(PipelineClass *self)
+{
+    return LCDC_WIN_ENABLE && self->parent->lcd->context->window_x >= 0
+        && self->parent->lcd->context->window_x <= 166
+        && self->parent->lcd->context->window_y >= 0
+        && self->parent->lcd->context->window_y < Y_RES;
+}
+
 const PipelineClass init_pipeline = {
     {
         ._size = sizeof(PipelineClass),
@@ -334,6 +376,8 @@ const PipelineClass init_pipeline = {
     .fetch_sprite_pixels = fetch_sprite_pixels,
     .load_sprite_data = load_sprite_data,
     .load_sprite_tile = load_sprite_tile,
+    .load_window_tile = load_window_tile,
+    .visible = visible,
 };
 
 const class_t *Pipeline = (const class_t *) &init_pipeline;
