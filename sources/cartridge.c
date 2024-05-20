@@ -11,6 +11,13 @@ static void constructor(void *ptr, va_list UNUSED *args)
 static void destructor(void *ptr)
 {
     CartridgeClass *self = (CartridgeClass *) ptr;
+
+    for (int i = 0; i < 16; i++) {
+        if (self->set_banks & (1 << i)) {
+            free(self->context->ram_banks[i]);
+        }
+    }
+
     free(self->context->rom_data);
     free(self->context);
 }
@@ -50,6 +57,8 @@ static bool load(CartridgeClass *self, char *path)
 
     self->context->header = (rom_header_t *) (self->context->rom_data + 0x100);
     self->context->header->title[15] = 0;
+    self->context->has_battery = self->battery(self);
+    self->context->needs_save = false;
     fclose(stream);
 
     printf("Cartridge loaded:\n");
@@ -62,6 +71,8 @@ static bool load(CartridgeClass *self, char *path)
         self->get_license(self));
     printf("\tROM Vers : %2.2X\n", self->context->header->version);
 
+    self->setup_banks(self);
+
     uint16_t x = 0;
     for (uint16_t i = 0x0134; i <= 0x014c; i++) {
         x -= self->context->rom_data[i] - 1;
@@ -70,18 +81,169 @@ static bool load(CartridgeClass *self, char *path)
     printf("\tChecksum : %2.2X (%s)\n", self->context->header->checksum,
         (x & 0xFF) ? "PASSED" : "FAILED");
 
+    if (self->context->has_battery) {
+        self->load_battery(self);
+    }
+
     return true;
 }
 
 static uint8_t read(CartridgeClass *self, uint16_t address)
 {
-    return self->context->rom_data[address];
+    if (!self->mbc_1(self) || address < 0x4000) {
+        return self->context->rom_data[address];
+    }
+
+    if ((address & 0xE000) == 0xA000) {
+        if (!self->context->ram_enabled) {
+            return 0xFF;
+        }
+
+        if (self->context->ram_bank == NULL) {
+            return 0xFF;
+        }
+
+        return self->context->ram_bank[address - 0xA000];
+    }
+
+    return self->context->rom_bank_x[address - 0x4000];
 }
 
-static void write(
-    CartridgeClass UNUSED *self, uint16_t UNUSED address, uint8_t UNUSED value)
+static void write(CartridgeClass *self, uint16_t address, uint8_t value)
 {
-    NOT_IMPLEMENTED();
+    if (!self->mbc_1(self)) {
+        return;
+    }
+
+    switch (address & 0xE000) {
+        case 0x0000: {
+            self->context->ram_enabled = (value & 0x0F) == 0x0A;
+            break;
+        }
+        case 0x2000: {
+            if (value == 0) {
+                value = 1;
+            }
+            value &= 0x1F;
+            self->context->rom_bank_value = value;
+            self->context->rom_bank_x = self->context->rom_data
+                + (0x4000 * self->context->rom_bank_value);
+            break;
+        }
+        case 0x4000: {
+            self->context->ram_bank_value = value & 0x03;
+            if (self->context->ram_banking) {
+                if (self->context->needs_save) {
+                    self->save_battery(self);
+                }
+                self->context->ram_bank =
+                    self->context->ram_banks[self->context->ram_bank_value];
+            }
+            break;
+        }
+        case 0x6000: {
+            self->context->banking_mode = value & 0x01;
+            self->context->ram_banking = self->context->banking_mode;
+            if (self->context->ram_banking) {
+                if (self->context->needs_save) {
+                    self->save_battery(self);
+                }
+                self->context->ram_bank =
+                    self->context->ram_banks[self->context->ram_bank_value];
+            }
+            break;
+        }
+        case 0xA000: {
+            if (!self->context->ram_enabled) {
+                return;
+            }
+            if (self->context->ram_bank == NULL) {
+                return;
+            }
+            self->context->ram_bank[address - 0xA000] = value;
+            if (self->context->has_battery) {
+                self->context->needs_save = true;
+            }
+            break;
+        }
+    }
+}
+
+static bool mbc_1(CartridgeClass *self)
+{
+    return BETWEEN(self->context->header->type, 0x01, 0x03);
+}
+
+static bool battery(CartridgeClass *self)
+{
+    return self->context->header->type == 0x03;
+}
+
+static void setup_banks(CartridgeClass *self)
+{
+    self->set_banks = 0;
+
+    for (int i = 0; i < 16; i++) {
+        self->context->ram_banks[i] = NULL;
+
+        if (self->context->header->ram_size == 2 && i == 0) {
+            self->context->ram_banks[i] = calloc(0x2000, 1);
+            self->set_banks |= 1 << i;
+        }
+        if (self->context->header->ram_size == 3 && i < 4) {
+            self->context->ram_banks[i] = calloc(0x2000, 1);
+            self->set_banks |= 1 << i;
+        }
+        if (self->context->header->ram_size == 4 && i < 16) {
+            self->context->ram_banks[i] = calloc(0x2000, 1);
+            self->set_banks |= 1 << i;
+        }
+        if (self->context->header->ram_size == 5 && i < 8) {
+            self->context->ram_banks[i] = calloc(0x2000, 1);
+            self->set_banks |= 1 << i;
+        }
+    }
+
+    self->context->ram_bank = self->context->ram_banks[0];
+    self->context->rom_bank_x = self->context->rom_data + 0x4000;
+}
+
+static void load_battery(CartridgeClass *self)
+{
+    if (self->context->ram_bank == NULL) {
+        return;
+    }
+
+    char name[1030] = {0};
+    snprintf(name, sizeof(name), "%s.sav", self->context->filename);
+
+    FILE *stream = fopen(name, "rb");
+    if (!stream) {
+        LOG("Failed to open battery file");
+        return;
+    }
+
+    fread(self->context->ram_bank, 0x2000, 1, stream);
+    fclose(stream);
+}
+
+static void save_battery(CartridgeClass *self)
+{
+    if (self->context->ram_bank == NULL) {
+        return;
+    }
+
+    char name[1030] = {0};
+    snprintf(name, sizeof(name), "%s.sav", self->context->filename);
+
+    FILE *stream = fopen(name, "wb");
+    if (!stream) {
+        LOG("Failed to open battery file");
+        return;
+    }
+
+    fwrite(self->context->ram_bank, 0x2000, 1, stream);
+    fclose(stream);
 }
 
 const CartridgeClass init_cartridge = {
@@ -198,6 +360,11 @@ const CartridgeClass init_cartridge = {
     .load = load,
     .read = read,
     .write = write,
+    .mbc_1 = mbc_1,
+    .battery = battery,
+    .load_battery = load_battery,
+    .save_battery = save_battery,
+    .setup_banks = setup_banks,
 };
 
 const class_t *Cartridge = (const class_t *) &init_cartridge;
