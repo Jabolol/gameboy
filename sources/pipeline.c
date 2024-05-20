@@ -6,6 +6,14 @@ static void constructor(void *ptr, va_list *args)
     self->parent = va_arg(*args, GameboyClass *);
 }
 
+static void destructor(void *ptr)
+{
+    PipelineClass *self = (PipelineClass *) ptr;
+    if (self->parent->ppu->context != NULL) {
+        self->fifo_reset(self);
+    }
+}
+
 static void fifo_push(PipelineClass *self, uint32_t value)
 {
     fifo_entry_t *next = calloc(1, sizeof(*next));
@@ -364,7 +372,7 @@ const PipelineClass init_pipeline = {
         ._size = sizeof(PipelineClass),
         ._name = "Pipeline",
         ._constructor = constructor,
-        ._destructor = NULL,
+        ._destructor = destructor,
     },
     .fetch = fetch,
     .process = process,
