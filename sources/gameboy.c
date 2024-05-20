@@ -82,7 +82,7 @@ static int32_t run(GameboyClass *self, int argc, char **argv)
         return 1;
     }
 
-    LOG("Cartridge successfully loaded\n");
+    LOG("Cartridge successfully loaded");
 
     if (pthread_create(&thread, NULL, self->cpu_run, self) != 0) {
         HANDLE_ERROR("Failed to create thread");
