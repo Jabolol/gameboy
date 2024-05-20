@@ -135,6 +135,9 @@ static void mode_hblank(PPUClass *self)
         if (end - self->start_timer >= 1000) {
             self->start_timer = end;
             self->frame_count = 0;
+            if (self->parent->cartridge->context->needs_save) {
+                self->parent->cartridge->save_battery(self->parent->cartridge);
+            }
         }
 
         self->frame_count += 1;
