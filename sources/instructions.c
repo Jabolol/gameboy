@@ -108,7 +108,7 @@ static void proc_rla(CPUClass *cpu)
 
 static void proc_stop(UNUSED CPUClass *cpu)
 {
-    HANDLE_ERROR("Stopping the CPU");
+    LOG("Stopping the CPU");
 }
 
 static void proc_daa(CPUClass *cpu)
