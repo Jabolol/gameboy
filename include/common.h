@@ -89,6 +89,7 @@
     #define TAC              0xFF07
     #define TIMER_RANGE      0xFF04 ... 0xFF07
     #define LCD_RANGE        0xFF40 ... 0xFF4B
+    #define SOUND_RANGE      0xFF10 ... 0xFF3F
     #define INTERRUPT_FLAG   0xFF0F
     #define TRANSFER_REG     0xFF46
     #define INST_BUFF_LEN    16
@@ -156,6 +157,16 @@ typedef struct {
     uint32_t rom_size;
     uint8_t *rom_data;
     rom_header_t *header;
+    bool ram_enabled;
+    bool ram_banking;
+    uint8_t *rom_bank_x;
+    uint8_t banking_mode;
+    uint8_t rom_bank_value;
+    uint8_t ram_bank_value;
+    uint8_t *ram_bank;
+    uint8_t *ram_banks[0x10];
+    bool has_battery;
+    bool needs_save;
 } cartridge_context_t;
 
 typedef struct {
