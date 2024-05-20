@@ -16,8 +16,9 @@ static void constructor(void *ptr, va_list *args)
 
 static void create_resources(UIClass *self)
 {
+    self->screen_width *= 2;
     int32_t total_width = self->screen_width + 16 * 8 * self->scale;
-    int32_t total_height = self->screen_height;
+    int32_t total_height = self->screen_height + 14 * 8 * self->scale;
     SDL_CreateWindowAndRenderer(
         total_width, total_height, 0, &self->window, &self->renderer);
     self->screen =
@@ -75,7 +76,7 @@ static void update_debug_window(UIClass *self)
     SDL_FillRect(
         self->debug_screen, &(SDL_Rect){0, 0, width, height}, 0xFF111111);
 
-    for (int32_t y = 0; y < 24; y++) {
+    for (int32_t y = 0; y < 32; y++) {
         for (int32_t x = 0; x < 16; x++) {
             self->display_tile(self, tile_num, x_draw + (x * 8 * self->scale),
                 y_draw + (y * 8 * self->scale));
@@ -134,7 +135,8 @@ static void update(UIClass *self)
         self->texture, NULL, self->screen->pixels, self->screen->pitch);
     SDL_RenderClear(self->renderer);
     SDL_RenderCopy(self->renderer, self->texture, NULL,
-        &(SDL_Rect){0, 0, self->screen_width, self->screen_height});
+        &(SDL_Rect){0, 0, self->screen_width * 2,
+            (self->screen_height * 2) - (32 * self->scale)});
     self->update_debug_window(self);
     SDL_RenderCopy(self->renderer, self->debug_texture, NULL,
         &(SDL_Rect){self->screen_width, 0, 16 * 8 * self->scale,
