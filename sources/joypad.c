@@ -15,7 +15,7 @@ static void destructor(void *ptr)
     free(self->context);
 }
 
-static void select(JoypadClass *self, uint8_t value)
+static void choose(JoypadClass *self, uint8_t value)
 {
     self->context->button_selected = value & 0x20;
     self->context->direction_selected = value & 0x10;
@@ -65,7 +65,7 @@ const JoypadClass init_joypad = {
         ._constructor = constructor,
         ._destructor = destructor,
     },
-    .select = select,
+    .choose = choose,
     .output = output,
 };
 

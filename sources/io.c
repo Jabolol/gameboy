@@ -41,7 +41,7 @@ static void write(IOClass *self, uint16_t address, uint8_t value)
 {
     switch (address) {
         case JOYPAD: {
-            self->parent->joypad->select(self->parent->joypad, value);
+            self->parent->joypad->choose(self->parent->joypad, value);
             break;
         }
         case SERIAL_DATA: {

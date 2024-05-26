@@ -13,7 +13,7 @@ typedef struct joypad_aux {
     GameboyClass *parent;
     joypad_context_t *context;
     /* Methods */
-    void (*select)(JoypadClass *, uint8_t);
+    void (*choose)(JoypadClass *, uint8_t);
     uint8_t (*output)(JoypadClass *);
 } JoypadClass;
 
