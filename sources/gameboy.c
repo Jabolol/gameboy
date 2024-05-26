@@ -36,10 +36,10 @@ static void destructor(void *ptr)
     destroy_class(self->io);
     destroy_class(self->debug);
     destroy_class(self->timer);
+    destroy_class(self->pipeline);
     destroy_class(self->ppu);
     destroy_class(self->dma);
     destroy_class(self->lcd);
-    destroy_class(self->pipeline);
     destroy_class(self->joypad);
     free(self->context);
 }
