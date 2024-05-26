@@ -29,18 +29,13 @@ make
 
 ## features
 
-> [!NOTE]\
-> This emulator is still in development, future releases will include more
-> features.
-
 - [x] Bus (Memory Management)
 - [x] CPU
 - [x] PPU (Graphics)
-- [ ] APU (Audio)
 - [x] Input (Joypad)
 - [x] Timer
 - [x] Interrupts (V-Blank, LCD, Timer, Serial, Joypad)
-- [ ] MBC* (Memory Bank Controllers - Only `MBC1` is supported)
+- [x] MBC1 (Memory Bank Controller 1)
 - [x] Save States (.sav files)
 
 ## controls
@@ -60,7 +55,7 @@ make
 
 ![](./assets/dr-mario.png)
 
-> Mega Man: Dr. Wily's Revenge
+> Mega Man - Dr. Wily's Revenge
 
 ![](./assets/megaman.png)
 
@@ -86,8 +81,8 @@ make
   comprehensive guide to the Gameboy CPU.
 - [Gameboy Opcodes](https://www.pastraiser.com/cpu/gameboy/gameboy_opcodes.html):
   List of all opcodes for the Gameboy CPU.
-- [Gameboy Pan Docs](https://gbdev.io/pandocs/): Comprehensive documentation on
-  the Gameboy hardware.
+- [Gameboy Pan Docs](https://gbdev.io/pandocs/): A detailed guide to the Gameboy
+  hardware.
 
 ## license
 
