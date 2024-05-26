@@ -361,9 +361,7 @@ static void load_window_tile(PipelineClass *self)
 
 static bool visible(PipelineClass *self)
 {
-    return LCDC_WIN_ENABLE && self->parent->lcd->context->window_x >= 0
-        && self->parent->lcd->context->window_x <= 166
-        && self->parent->lcd->context->window_y >= 0
+    return LCDC_WIN_ENABLE && self->parent->lcd->context->window_x <= 166
         && self->parent->lcd->context->window_y < Y_RES;
 }
 
