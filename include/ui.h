@@ -1,7 +1,6 @@
 #include <SDL2/SDL.h>
 #include "common.h"
 #include "oop.h"
-#include <SDL2/SDL_ttf.h>
 
 #ifndef __UI
     #define __UI

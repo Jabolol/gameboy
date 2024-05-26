@@ -19,7 +19,6 @@
 #include "stack.h"
 #include "timer.h"
 #include "ui.h"
-#include <SDL2/SDL_ttf.h>
 
 #ifndef __GAMEBOY
     #define __GAMEBOY

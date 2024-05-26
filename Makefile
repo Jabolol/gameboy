@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra
-LIBS = -lSDL2_ttf -lSDL2
+LIBS = -lSDL2
 SRCDIR = sources
 SRC = $(wildcard $(SRCDIR)/*.c)
 OBJ = $(SRC:.c=.o)

@@ -9,8 +9,6 @@ static void constructor(void *ptr, va_list *args)
     self->scale = va_arg(*args, int32_t);
     SDL_Init(SDL_INIT_VIDEO);
     LOG("SDL initialized");
-    TTF_Init();
-    LOG("TTF initialized");
     self->create_resources(self);
 }
 
@@ -43,7 +41,6 @@ static void destructor(void *ptr)
     SDL_DestroyTexture(self->debug_texture);
     SDL_FreeSurface(self->debug_screen);
     SDL_FreeSurface(self->screen);
-    TTF_Quit();
     SDL_Quit();
 }
 
