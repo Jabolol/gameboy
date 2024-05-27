@@ -6,25 +6,26 @@ An accurate **gameboy** emulator written in C from scratch.
 
 ## development
 
-In order to run the emulator, you need to have `SDL2` installed on your machine,
-as well as `build-essential`.
+In order to run the emulator, you need to have `cmake`, a build system like
+`ninja` and a C compiler. `SDL2` is included as a submodule and will be compiled
+along with the project.
 
 1. Clone the repository
 
 ```bash
-git clone git@github.com:Jabolol/gameboy.git .
+git clone --recurse-submodules git@github.com:Jabolol/gameboy.git .
 ```
 
 2. Compile the project
 
 ```bash
-make
+cmake -B build -G Ninja && cmake --build build
 ```
 
 3. Run the emulator
 
 ```bash
-./gameboy /path/to/rom.gb
+./build/gameboy /path/to/rom.gb
 ```
 
 ## features
