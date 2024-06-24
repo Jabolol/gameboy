@@ -1,8 +1,5 @@
-#include <SDL2/SDL.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include <time.h>
 #include "bus.h"
 #include "cartridge.h"
 #include "common.h"
