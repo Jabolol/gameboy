@@ -2,3 +2,6 @@
 	path = external/sdl2
 	url = git@github.com:libsdl-org/SDL.git
 	branch = SDL2
+[submodule "external/emsdk"]
+	path = external/emsdk
+	url = https://github.com/emscripten-core/emsdk.git
