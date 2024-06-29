@@ -1,3 +1,6 @@
+#ifdef __EMSCRIPTEN__
+    #include <emscripten.h>
+#endif
 #include "../include/gameboy.h"
 
 static void constructor(void *ptr, va_list UNUSED *args)
@@ -56,16 +59,40 @@ static void *cpu_run(void *ptr)
         if (self->context->die) {
             pthread_exit(NULL);
         }
+#ifndef __EMSCRIPTEN__
         if (self->context->paused) {
             self->ui->delay(10);
             continue;
         }
+#endif
         if (!self->cpu->step(self->cpu)) {
             LOG("CPU stopped");
             break;
         }
     }
     return 0;
+}
+
+static void loop(void *ptr)
+{
+    GameboyClass *self = ptr;
+
+#ifndef __EMSCRIPTEN__
+    nanosleep(&(struct timespec){.tv_nsec = 1000000}, NULL);
+#endif
+    self->ui->handle_events(self->ui);
+
+    if (self->context->prev_frame != self->ppu->context->current_frame) {
+        self->ui->update(self->ui);
+    }
+
+    self->context->prev_frame = self->ppu->context->current_frame;
+
+#ifdef __EMSCRIPTEN__
+    if (self->context->die) {
+        emscripten_cancel_main_loop();
+    }
+#endif
 }
 
 static int32_t run(GameboyClass *self, int argc, char **argv)
@@ -88,17 +115,15 @@ static int32_t run(GameboyClass *self, int argc, char **argv)
         HANDLE_ERROR("Failed to create thread");
     }
 
-    uint32_t prev_frame = 0;
+    self->context->prev_frame = 0;
 
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop_arg(self->loop, self, 0, 1);
+#else
     while (!self->context->die) {
-        nanosleep(&(struct timespec){.tv_nsec = 1000000}, NULL);
-        self->ui->handle_events(self->ui);
-
-        if (prev_frame != self->ppu->context->current_frame) {
-            self->ui->update(self->ui);
-        }
-        prev_frame = self->ppu->context->current_frame;
+        loop(self);
     }
+#endif
 
     pthread_join(thread, NULL);
 
@@ -127,6 +152,7 @@ const GameboyClass init_gameboy = {
     .run = run,
     .cycles = cycles,
     .cpu_run = cpu_run,
+    .loop = loop,
 };
 
 const class_t *Gameboy = (const class_t *) &init_gameboy;

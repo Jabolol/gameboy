@@ -135,6 +135,7 @@ typedef struct {
     bool running;
     bool die;
     uint64_t ticks;
+    uint32_t prev_frame;
 } emulator_context_t;
 
 typedef struct {
