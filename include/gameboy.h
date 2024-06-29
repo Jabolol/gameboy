@@ -45,6 +45,7 @@ typedef struct gameboy_aux {
     int32_t (*run)(GameboyClass *, int32_t, char **);
     void (*cycles)(GameboyClass *, int32_t);
     void *(*cpu_run)(void *);
+    void (*loop)(void *);
 } GameboyClass;
 
 extern const class_t *Gameboy;
