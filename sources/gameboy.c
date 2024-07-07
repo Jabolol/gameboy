@@ -75,7 +75,7 @@ static void *cpu_run(void *ptr)
 
 static void loop(void *ptr)
 {
-    GameboyClass *self = ptr;
+    GameboyClass *self = (GameboyClass *) ptr;
 
 #ifndef __EMSCRIPTEN__
     nanosleep(&(struct timespec){.tv_nsec = 1000000}, NULL);
