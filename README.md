@@ -16,13 +16,19 @@ along with the project.
 git clone --recurse-submodules git@github.com:Jabolol/gameboy.git .
 ```
 
-2. Compile the project
+2. Add the `ROMs` directory with the ROMs to be loaded in the web version
+
+```bash
+mkdir ROMs && cp /path/to/rom.gb ROMs
+```
+
+3. Compile the project
 
 ```bash
 cmake -B build -G Ninja && cmake --build build
 ```
 
-3. Run the emulator
+4. Run the emulator
 
 ```bash
 ./build/gameboy /path/to/rom.gb
