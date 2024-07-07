@@ -31,15 +31,23 @@ add_subdirectory(${SDL2_PATH})
 include_directories(${SDL2_PATH}/include)
 target_link_libraries(${PROJECT_NAME} SDL2)
 
+set(WASM_FLAGS 
+    -s WASM=1
+    -s USE_SDL=2
+    -o www/static/gameboy.js
+    -pthread
+    -s PTHREAD_POOL_SIZE=1
+    -s ASYNCIFY
+)
+
+if(EXISTS "${PROJECT_SOURCE_DIR}/ROMs")
+    list(APPEND WASM_FLAGS --preload-file ROMs@/ROMs)
+else()
+    message(WARNING "ROMs directory not found, no runnable ROMs will be available")
+endif()
+
 add_custom_target(wasm
-    COMMAND ${EMSCRIPTEN_PATH}/emcc ${SRC}
-        -s WASM=1
-        -s USE_SDL=2
-        -o www/static/gameboy.js
-        -pthread
-        -s PTHREAD_POOL_SIZE=1
-        -s ASYNCIFY
-        --preload-file ROMs@/ROMs
+    COMMAND ${EMSCRIPTEN_PATH}/emcc ${SRC} ${WASM_FLAGS}
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
 
