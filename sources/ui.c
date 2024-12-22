@@ -35,12 +35,12 @@ static void create_resources(UIClass *self)
 static void destructor(void *ptr)
 {
     UIClass *self = (UIClass *) ptr;
-    SDL_DestroyWindow(self->window);
-    SDL_DestroyRenderer(self->renderer);
     SDL_DestroyTexture(self->texture);
     SDL_DestroyTexture(self->debug_texture);
     SDL_FreeSurface(self->debug_screen);
     SDL_FreeSurface(self->screen);
+    SDL_DestroyRenderer(self->renderer);
+    SDL_DestroyWindow(self->window);
     SDL_Quit();
 }
 
