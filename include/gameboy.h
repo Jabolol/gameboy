@@ -13,6 +13,7 @@
 #include "pipeline.h"
 #include "ppu.h"
 #include "ram.h"
+#include "sound.h"
 #include "stack.h"
 #include "timer.h"
 #include "ui.h"
@@ -40,6 +41,7 @@ typedef struct gameboy_aux {
     LCDClass *lcd;
     PipelineClass *pipeline;
     JoypadClass *joypad;
+    SoundClass *sound;
     emulator_context_t *context;
     /* Methods */
     int32_t (*run)(GameboyClass *, int32_t, char **);

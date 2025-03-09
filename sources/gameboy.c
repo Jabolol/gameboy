@@ -21,6 +21,7 @@ static void constructor(void *ptr, va_list UNUSED *args)
     self->dma = new_class(DMA, self);
     self->pipeline = new_class(Pipeline, self);
     self->joypad = new_class(Joypad, self);
+    self->sound = new_class(Sound, self);
     if (!((self->context = calloc(1, sizeof(*self->context))))) {
         HANDLE_ERROR("failed memory allocation");
     }
@@ -44,6 +45,7 @@ static void destructor(void *ptr)
     destroy_class(self->dma);
     destroy_class(self->lcd);
     destroy_class(self->joypad);
+    destroy_class(self->sound);
     free(self->context);
 }
 
@@ -78,9 +80,10 @@ static void loop(void *ptr)
     GameboyClass *self = (GameboyClass *) ptr;
 
 #ifndef __EMSCRIPTEN__
-    nanosleep(&(struct timespec){.tv_nsec = 1000000}, NULL);
+    nanosleep(&(struct timespec) {.tv_nsec = 1000000}, NULL);
 #endif
     self->ui->handle_events(self->ui);
+    self->sound->update(self->sound);
 
     if (self->context->prev_frame != self->ppu->context->current_frame) {
         self->ui->update(self->ui);
