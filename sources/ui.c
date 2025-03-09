@@ -71,7 +71,7 @@ static void update_debug_window(UIClass *self)
     int32_t height = self->debug_screen->h;
 
     SDL_FillRect(
-        self->debug_screen, &(SDL_Rect){0, 0, width, height}, 0xFF111111);
+        self->debug_screen, &(SDL_Rect) {0, 0, width, height}, 0xFF111111);
 
     for (int32_t y = 0; y < 32; y++) {
         for (int32_t x = 0; x < 16; x++) {
@@ -100,7 +100,7 @@ static void display_tile(
             uint8_t color = hi | lo;
 
             SDL_FillRect(self->debug_screen,
-                &(SDL_Rect){
+                &(SDL_Rect) {
                     x + ((7 - bit) * self->scale),
                     y + (tile_y / 2 * self->scale),
                     self->scale,
@@ -118,7 +118,7 @@ static void update(UIClass *self)
     for (int32_t line_num = 0; line_num < Y_RES; line_num++) {
         for (int32_t x = 0; x < X_RES; x++) {
             SDL_FillRect(self->screen,
-                &(SDL_Rect){
+                &(SDL_Rect) {
                     .x = x * self->scale,
                     .y = line_num * self->scale,
                     .w = self->scale,
@@ -132,11 +132,11 @@ static void update(UIClass *self)
         self->texture, NULL, self->screen->pixels, self->screen->pitch);
     SDL_RenderClear(self->renderer);
     SDL_RenderCopy(self->renderer, self->texture, NULL,
-        &(SDL_Rect){0, 0, self->screen_width * 2,
+        &(SDL_Rect) {0, 0, self->screen_width * 2,
             (self->screen_height * 2) - (32 * self->scale)});
     self->update_debug_window(self);
     SDL_RenderCopy(self->renderer, self->debug_texture, NULL,
-        &(SDL_Rect){self->screen_width, 0, 16 * 8 * self->scale,
+        &(SDL_Rect) {self->screen_width, 0, 16 * 8 * self->scale,
             32 * 8 * self->scale});
     SDL_RenderPresent(self->renderer);
 }
@@ -188,6 +188,12 @@ static void on_key(UIClass *self, bool down, SDL_Keycode code)
         }
         case SDLK_q: {
             self->parent->context->die = true;
+            break;
+        }
+        case SDLK_u:
+        case SDLK_d: {
+            self->parent->sound->update_volume(
+                self->parent->sound, code == SDLK_u);
             break;
         }
     }
