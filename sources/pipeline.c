@@ -39,7 +39,7 @@ static uint32_t fetch_sprite_pixels(
     PipelineClass *self, int32_t bit, uint32_t color, uint8_t bg_color)
 {
     for (int32_t i = 0; i < self->parent->ppu->context->fetch_entry_count;
-         i++) {
+        i++) {
         int32_t sp_x = (self->parent->ppu->context->fetched_entries[i].x - 8)
             + (self->parent->lcd->context->scroll_x % 8);
 
@@ -164,9 +164,8 @@ static void load_sprite_tile(PipelineClass *self)
         bool fits = fits_one || fits_two;
 
         if (fits) {
-            self->parent->ppu->context->fetched_entries
-                [self->parent->ppu->context->fetch_entry_count++] =
-                line_entry->entry;
+            self->parent->ppu->context->fetched_entries[self->parent->ppu
+                    ->context->fetch_entry_count++] = line_entry->entry;
         }
 
         line_entry = line_entry->next;
@@ -184,7 +183,7 @@ static void load_sprite_data(PipelineClass *self, uint8_t offset)
     uint8_t sprite_height = LCDC_OBJ_HEIGHT;
 
     for (int32_t i = 0; i < self->parent->ppu->context->fetch_entry_count;
-         i++) {
+        i++) {
         uint8_t tile_y =
             ((current_y + 16)
                 - self->parent->ppu->context->fetched_entries[i].y)
