@@ -31,7 +31,7 @@ add_subdirectory(${SDL2_PATH})
 include_directories(${SDL2_PATH}/include)
 target_link_libraries(${PROJECT_NAME} SDL2)
 
-set(WASM_FLAGS 
+set(WASM_FLAGS
     -s WASM=1
     -s USE_SDL=2
     -o www/static/gameboy.js
