@@ -5,6 +5,7 @@ const games = [
   "donkey-kong.gb",
   "dr-mario.gb",
   "kirby-dream.gb",
+  "kirby-dream-2.gb",
   "megaman-willy.gb",
   "super-mario.gb",
   "tetris.gb",
