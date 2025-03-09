@@ -44,6 +44,7 @@ cmake -B build -G Ninja && cmake --build build
 - [x] Interrupts (V-Blank, LCD, Timer, Serial, Joypad)
 - [x] MBC1 (Memory Bank Controller 1)
 - [x] Save States (.sav files)
+- [x] Sound (Square Wave, Wave, Noise)
 - [x] Web version at [gameboy.deno.dev](https://gameboy.deno.dev/)
 
 ## controls
@@ -51,6 +52,8 @@ cmake -B build -G Ninja && cmake --build build
 - `Arrow Keys` - D-Pad
 - `A` - A
 - `B` - B
+- `U` - Volume Up
+- `D` - Volume Down
 - `Enter` - Start
 
 ## web version
@@ -90,6 +93,10 @@ deno task --cwd www start
 > [Kirby - Dream Land](https://gameboy.deno.dev/?game=kirby-dream)
 
 ![](./assets/kirby.png)
+
+> [Kirby - Dream Land 2](https://gameboy.deno.dev/?game=kirby-dream-2)
+
+![](./assets/kirby-2.png)
 
 > [Tetris](https://gameboy.deno.dev/?game=tetris)
 
