@@ -25,7 +25,7 @@ static uint8_t read(IOClass *self, uint16_t address)
             return self->parent->cpu->get_int_flags(self->parent->cpu);
         }
         case SOUND_RANGE: {
-            return 0;
+            return self->parent->sound->read(self->parent->sound, address);
         }
         case LCD_RANGE: {
             return self->parent->lcd->read(self->parent->lcd, address);
@@ -61,6 +61,7 @@ static void write(IOClass *self, uint16_t address, uint8_t value)
             break;
         }
         case SOUND_RANGE: {
+            self->parent->sound->write(self->parent->sound, address, value);
             break;
         }
         case LCD_RANGE: {

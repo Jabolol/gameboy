@@ -1,3 +1,4 @@
+#include <SDL2/SDL.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -124,11 +125,16 @@
     #define LCDC_WIN_ENABLE (BIT(self->parent->lcd->context->control, 5))
     #define LCDC_WIN_MAP_AREA \
         (BIT(self->parent->lcd->context->control, 6) ? 0x9C00 : 0x9800)
-    #define LCDC_LCD_ENABLE (BIT(self->parent->lcd->context->control, 7))
-    #define CPU_FLAG_Z      BIT(cpu->context->registers.f, 7)
-    #define CPU_FLAG_N      BIT(cpu->context->registers.f, 6)
-    #define CPU_FLAG_H      BIT(cpu->context->registers.f, 5)
-    #define CPU_FLAG_C      BIT(cpu->context->registers.f, 4)
+    #define LCDC_LCD_ENABLE   (BIT(self->parent->lcd->context->control, 7))
+    #define CPU_FLAG_Z        BIT(cpu->context->registers.f, 7)
+    #define CPU_FLAG_N        BIT(cpu->context->registers.f, 6)
+    #define CPU_FLAG_H        BIT(cpu->context->registers.f, 5)
+    #define CPU_FLAG_C        BIT(cpu->context->registers.f, 4)
+    #define AUDIO_FREQUENCY   44100
+    #define AUDIO_FORMAT      AUDIO_S16SYS
+    #define AUDIO_CHANNELS    2
+    #define AUDIO_SAMPLES     1024
+    #define AUDIO_MAX_SAMPLES 4096
 
 typedef struct {
     bool paused;
@@ -454,5 +460,87 @@ typedef struct {
     bool direction_selected;
     joypad_state_t state;
 } joypad_context_t;
+
+typedef struct {
+    bool enabled;
+    uint8_t volume;
+    uint8_t freq_lo;
+    uint8_t freq_hi;
+    uint8_t sweep_time;
+    uint8_t sweep_direction;
+    uint8_t sweep_shift;
+    uint8_t wave_duty;
+    uint8_t length;
+    uint8_t initial_volume;
+    uint8_t envelope_direction;
+    uint8_t envelope_sweep;
+    uint32_t frequency;
+    uint32_t period;
+    uint32_t duty_cycle;
+    uint16_t lfsr;
+    float_t time_counter;
+    float_t envelope_counter;
+    float_t sweep_counter;
+} sound_channel1_t;
+
+typedef struct {
+    bool enabled;
+    uint8_t volume;
+    uint8_t freq_lo;
+    uint8_t freq_hi;
+    uint8_t wave_duty;
+    uint8_t length;
+    uint8_t initial_volume;
+    uint8_t envelope_direction;
+    uint8_t envelope_sweep;
+    uint32_t frequency;
+    uint32_t period;
+    uint32_t duty_cycle;
+    float_t time_counter;
+    float_t envelope_counter;
+} sound_channel2_t;
+
+typedef struct {
+    bool enabled;
+    uint8_t volume;
+    uint8_t freq_lo;
+    uint8_t freq_hi;
+    uint8_t length;
+    uint8_t output_level;
+    uint32_t frequency;
+    uint32_t period;
+    float_t time_counter;
+    uint8_t wave_pattern[32];
+} sound_channel3_t;
+
+typedef struct {
+    bool enabled;
+    uint8_t volume;
+    uint8_t length;
+    uint8_t initial_volume;
+    uint8_t envelope_direction;
+    uint8_t envelope_sweep;
+    uint8_t shift_clock_freq;
+    uint8_t counter_width;
+    uint8_t dividing_ratio;
+    uint32_t period;
+    uint16_t lfsr;
+    float_t time_counter;
+    float_t envelope_counter;
+} sound_channel4_t;
+
+typedef struct {
+    bool initialized;
+    SDL_AudioDeviceID device;
+    SDL_AudioSpec spec;
+    uint8_t master_volume;
+    uint8_t channel_control;
+    uint8_t output_select;
+    uint8_t master_on;
+    sound_channel1_t channel1;
+    sound_channel2_t channel2;
+    sound_channel3_t channel3;
+    sound_channel4_t channel4;
+} sound_context_t;
 
 #endif
