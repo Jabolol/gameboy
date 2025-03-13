@@ -174,7 +174,27 @@ typedef struct {
     uint8_t *ram_bank;
     uint8_t *ram_banks[0x10];
     bool has_battery;
+    bool has_rtc;
     bool needs_save;
+    uint8_t rtc_s;
+    uint8_t rtc_m;
+    uint8_t rtc_h;
+    uint8_t rtc_dl;
+    uint8_t rtc_dh;
+    bool rtc_selected;
+    uint8_t rtc_reg;
+    uint8_t rtc_latch;
+    time_t rtc_last_time;
+    uint8_t mbc6_rom_bank1;
+    uint8_t mbc6_rom_bank2;
+    uint8_t mbc6_ram_bank1;
+    uint8_t mbc6_ram_bank2;
+    uint8_t mbc7_state;
+    uint16_t mbc7_buffer;
+    uint16_t mbc7_output;
+    bool mbc7_cs;
+    bool mbc7_clk;
+    bool mbc7_prev_clk;
 } cartridge_context_t;
 
 typedef struct {

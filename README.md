@@ -42,7 +42,7 @@ cmake -B build -G Ninja && cmake --build build
 - [x] Input (Joypad)
 - [x] Timer
 - [x] Interrupts (V-Blank, LCD, Timer, Serial, Joypad)
-- [x] MBC1 (Memory Bank Controller 1)
+- [x] MBC1 - MBC7 (Memory Bank Controllers 1-7)
 - [x] Save States (.sav files)
 - [x] Sound (Square Wave, Wave, Noise)
 - [x] Web version at [gameboy.deno.dev](https://gameboy.deno.dev/)
@@ -77,6 +77,10 @@ deno task --cwd www start
 > [Legend of Zelda, The - Link's Awakening](https://gameboy.deno.dev/?game=zelda)
 
 ![](./assets/zelda.png)
+
+> [Pokemon - Yellow Version - Special Pikachu Edition](https://gameboy.deno.dev/?game=pokemon-yellow)
+
+![](./assets/pokemon-yellow.png)
 
 > [Dr. Mario](https://gameboy.deno.dev/?game=dr-mario)
 
