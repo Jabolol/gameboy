@@ -58,6 +58,7 @@ static bool load(CartridgeClass *self, char *path)
     self->context->header = (rom_header_t *) (self->context->rom_data + 0x100);
     self->context->header->title[15] = 0;
     self->context->has_battery = self->battery(self);
+    self->context->has_rtc = self->rtc(self);
     self->context->needs_save = false;
     fclose(stream);
 
@@ -90,7 +91,14 @@ static bool load(CartridgeClass *self, char *path)
 
 static uint8_t read(CartridgeClass *self, uint16_t address)
 {
-    if (!self->mbc_1(self) || address < 0x4000) {
+    if (address < 0x4000) {
+        return self->context->rom_data[address];
+    }
+
+    if (address < 0x8000) {
+        if (self->context->rom_bank_x) {
+            return self->context->rom_bank_x[address - 0x4000];
+        }
         return self->context->rom_data[address];
     }
 
@@ -103,18 +111,58 @@ static uint8_t read(CartridgeClass *self, uint16_t address)
             return 0xFF;
         }
 
+        if (self->mbc_3(self) && self->context->rtc_selected) {
+            return self->read_rtc(self, self->context->rtc_reg);
+        }
+
         return self->context->ram_bank[address - 0xA000];
     }
 
-    return self->context->rom_bank_x[address - 0x4000];
+    return 0xFF;
 }
 
 static void write(CartridgeClass *self, uint16_t address, uint8_t value)
 {
-    if (!self->mbc_1(self)) {
+    if (address < 0x8000) {
+        if (self->mbc_1(self)) {
+            self->write_mbc1(self, address, value);
+        } else if (self->mbc_2(self)) {
+            self->write_mbc2(self, address, value);
+        } else if (self->mbc_3(self)) {
+            self->write_mbc3(self, address, value);
+        } else if (self->mbc_5(self)) {
+            self->write_mbc5(self, address, value);
+        } else if (self->mbc_6(self)) {
+            self->write_mbc6(self, address, value);
+        } else if (self->mbc_7(self)) {
+            self->write_mbc7(self, address, value);
+        }
         return;
     }
 
+    if ((address & 0xE000) == 0xA000) {
+        if (!self->context->ram_enabled) {
+            return;
+        }
+
+        if (self->context->ram_bank == NULL) {
+            return;
+        }
+
+        if (self->mbc_3(self) && self->context->rtc_selected) {
+            self->write_rtc(self, self->context->rtc_reg, value);
+            return;
+        }
+
+        self->context->ram_bank[address - 0xA000] = value;
+        if (self->context->has_battery) {
+            self->context->needs_save = true;
+        }
+    }
+}
+
+static void write_mbc1(CartridgeClass *self, uint16_t address, uint8_t value)
+{
     switch (address & 0xE000) {
         case 0x0000: {
             self->context->ram_enabled = (value & 0x0F) == 0x0A;
@@ -153,14 +201,223 @@ static void write(CartridgeClass *self, uint16_t address, uint8_t value)
             }
             break;
         }
+    }
+}
+
+static void write_mbc2(CartridgeClass *self, uint16_t address, uint8_t value)
+{
+    switch (address & 0xE000) {
+        case 0x0000: {
+            if (!(address & 0x0100)) {
+                self->context->ram_enabled = (value & 0x0F) == 0x0A;
+            }
+            break;
+        }
+        case 0x2000: {
+            if (address & 0x0100) {
+                value &= 0x0F;
+                if (value == 0) {
+                    value = 1;
+                }
+                self->context->rom_bank_value = value;
+                self->context->rom_bank_x = self->context->rom_data
+                    + (0x4000 * self->context->rom_bank_value);
+            }
+            break;
+        }
+    }
+}
+
+static void write_mbc3(CartridgeClass *self, uint16_t address, uint8_t value)
+{
+    switch (address & 0xE000) {
+        case 0x0000: {
+            self->context->ram_enabled = (value & 0x0F) == 0x0A;
+            break;
+        }
+        case 0x2000: {
+            value &= 0x7F;
+            if (value == 0) {
+                value = 1;
+            }
+            self->context->rom_bank_value = value;
+            self->context->rom_bank_x = self->context->rom_data
+                + (0x4000 * self->context->rom_bank_value);
+            break;
+        }
+        case 0x4000: {
+            if (value <= 0x03) {
+                self->context->ram_bank_value = value;
+                self->context->rtc_selected = false;
+                self->context->ram_bank =
+                    self->context->ram_banks[self->context->ram_bank_value];
+            } else if (value >= 0x08 && value <= 0x0C) {
+                self->context->rtc_selected = true;
+                self->context->rtc_reg = value - 0x08;
+            }
+            break;
+        }
+        case 0x6000: {
+            if (self->context->rtc_latch == 0 && value == 1) {
+                self->latch_rtc(self);
+            }
+            self->context->rtc_latch = value;
+            break;
+        }
+    }
+}
+
+static void write_mbc5(CartridgeClass *self, uint16_t address, uint8_t value)
+{
+    switch (address & 0xF000) {
+        case 0x0000:
+        case 0x1000: {
+            self->context->ram_enabled = (value & 0x0F) == 0x0A;
+            break;
+        }
+        case 0x2000: {
+            self->context->rom_bank_value =
+                (self->context->rom_bank_value & 0x100) | value;
+            self->context->rom_bank_x = self->context->rom_data
+                + (0x4000 * self->context->rom_bank_value);
+            break;
+        }
+        case 0x3000: {
+            self->context->rom_bank_value =
+                (self->context->rom_bank_value & 0xFF) | ((value & 0x01) << 8);
+            self->context->rom_bank_x = self->context->rom_data
+                + (0x4000 * self->context->rom_bank_value);
+            break;
+        }
+        case 0x4000:
+        case 0x5000: {
+            value &= 0x0F;
+            self->context->ram_bank_value = value;
+
+            if (self->context->ram_banks[value] != NULL) {
+                self->context->ram_bank = self->context->ram_banks[value];
+            }
+            break;
+        }
+    }
+}
+
+static void write_mbc6(CartridgeClass *self, uint16_t address, uint8_t value)
+{
+    switch (address & 0xF000) {
+        case 0x0000:
+        case 0x1000: {
+            self->context->ram_enabled = (value & 0x0F) == 0x0A;
+            break;
+        }
+        case 0x2000: {
+            if (address & 0x0020) {
+                self->context->mbc6_rom_bank1 =
+                    (self->context->mbc6_rom_bank1 & 0x1F)
+                    | ((value & 0x03) << 5);
+            } else {
+                self->context->mbc6_rom_bank1 =
+                    (self->context->mbc6_rom_bank1 & 0x60) | (value & 0x1F);
+            }
+
+            self->update_mbc6_banks(self);
+            break;
+        }
+        case 0x3000: {
+            if (address & 0x0020) {
+                self->context->mbc6_rom_bank2 =
+                    (self->context->mbc6_rom_bank2 & 0x1F)
+                    | ((value & 0x03) << 5);
+            } else {
+                self->context->mbc6_rom_bank2 =
+                    (self->context->mbc6_rom_bank2 & 0x60) | (value & 0x1F);
+            }
+
+            self->update_mbc6_banks(self);
+            break;
+        }
+        case 0x4000: {
+            self->context->ram_bank_value = value & 0x07;
+            self->context->ram_bank =
+                self->context->ram_banks[self->context->ram_bank_value];
+            break;
+        }
+    }
+}
+
+static void write_mbc7(CartridgeClass *self, uint16_t address, uint8_t value)
+{
+    switch (address & 0xF000) {
+        case 0x0000:
+        case 0x1000: {
+            self->context->ram_enabled = (value & 0x0F) == 0x0A;
+            break;
+        }
+        case 0x2000:
+        case 0x3000: {
+            value &= 0x7F;
+            if (value == 0) {
+                value = 1;
+            }
+            self->context->rom_bank_value = value;
+            self->context->rom_bank_x = self->context->rom_data
+                + (0x4000 * self->context->rom_bank_value);
+            break;
+        }
         case 0xA000: {
-            if (!self->context->ram_enabled) {
-                return;
+            if (address == 0xA000) {
+                self->context->mbc7_cs = (value & 0x80) != 0;
+                self->context->mbc7_clk = (value & 0x40) != 0;
+
+                if (self->context->mbc7_cs && self->context->ram_enabled) {
+                    if (self->context->mbc7_prev_clk
+                        && !self->context->mbc7_clk) {
+                        self->handle_mbc7_transfer(self, value);
+                    }
+                    self->context->mbc7_prev_clk = self->context->mbc7_clk;
+                }
             }
-            if (self->context->ram_bank == NULL) {
-                return;
-            }
-            self->context->ram_bank[address - 0xA000] = value;
+            break;
+        }
+    }
+}
+
+static void update_mbc6_banks(CartridgeClass *self)
+{
+    if (self->context->mbc6_rom_bank1 == 0) {
+        self->context->mbc6_rom_bank1 = 1;
+    }
+    if (self->context->mbc6_rom_bank2 == 0) {
+        self->context->mbc6_rom_bank2 = 1;
+    }
+
+    self->context->rom_bank_value = self->context->mbc6_rom_bank1;
+    self->context->rom_bank_x =
+        self->context->rom_data + (0x4000 * self->context->rom_bank_value);
+}
+
+static void handle_mbc7_transfer(CartridgeClass *self, uint8_t value)
+{
+    if (self->context->mbc7_state == 0) {
+        self->context->mbc7_buffer = value & 0x3F;
+        self->context->mbc7_state = 1;
+        return;
+    }
+
+    switch (self->context->mbc7_buffer) {
+        case 0x08: {
+            self->context->mbc7_output = 0x8000;
+            break;
+        }
+        case 0x09: {
+            self->context->mbc7_output = 0x8000;
+            break;
+        }
+        case 0x0B: {
+            self->context->mbc7_output = 0xFF;
+            break;
+        }
+        case 0x0C: {
             if (self->context->has_battery) {
                 self->context->needs_save = true;
             }
@@ -169,14 +426,133 @@ static void write(CartridgeClass *self, uint16_t address, uint8_t value)
     }
 }
 
+static uint8_t read_rtc(CartridgeClass *self, uint8_t reg)
+{
+    switch (reg) {
+        case 0: return self->context->rtc_s;
+        case 1: return self->context->rtc_m;
+        case 2: return self->context->rtc_h;
+        case 3: return self->context->rtc_dl;
+        case 4: return self->context->rtc_dh;
+        default: return 0xFF;
+    }
+}
+
+static void write_rtc(CartridgeClass *self, uint8_t reg, uint8_t value)
+{
+    switch (reg) {
+        case 0: self->context->rtc_s = value; break;
+        case 1: self->context->rtc_m = value; break;
+        case 2: self->context->rtc_h = value; break;
+        case 3: self->context->rtc_dl = value; break;
+        case 4: self->context->rtc_dh = value & 0xC1; break;
+    }
+}
+
+static void latch_rtc(CartridgeClass *self)
+{
+    time_t current_time;
+    time(&current_time);
+
+    time_t seconds_elapsed = current_time - self->context->rtc_last_time;
+    self->context->rtc_last_time = current_time;
+
+    if (!(self->context->rtc_dh & 0x40)) {
+        uint32_t seconds = self->context->rtc_s;
+        uint32_t minutes = self->context->rtc_m;
+        uint32_t hours = self->context->rtc_h;
+        uint32_t days =
+            self->context->rtc_dl | ((self->context->rtc_dh & 0x01) << 8);
+        bool carry = (self->context->rtc_dh & 0x80) != 0;
+
+        seconds += seconds_elapsed % 60;
+        seconds_elapsed /= 60;
+
+        if (seconds >= 60) {
+            seconds -= 60;
+            minutes++;
+        }
+
+        minutes += seconds_elapsed % 60;
+        seconds_elapsed /= 60;
+
+        if (minutes >= 60) {
+            minutes -= 60;
+            hours++;
+        }
+
+        hours += seconds_elapsed % 24;
+        seconds_elapsed /= 24;
+
+        if (hours >= 24) {
+            hours -= 24;
+            days++;
+        }
+
+        days += seconds_elapsed;
+
+        if (days > 511) {
+            carry = true;
+            days %= 512;
+        }
+
+        self->context->rtc_s = seconds;
+        self->context->rtc_m = minutes;
+        self->context->rtc_h = hours;
+        self->context->rtc_dl = days & 0xFF;
+        self->context->rtc_dh = (self->context->rtc_dh & 0x7E)
+            | ((days >> 8) & 0x01) | (carry ? 0x80 : 0);
+    }
+}
+
 static bool mbc_1(CartridgeClass *self)
 {
-    return BETWEEN(self->context->header->type, 0x01, 0x03);
+    uint8_t type = self->context->header->type;
+    return type >= 0x01 && type <= 0x03;
+}
+
+static bool mbc_2(CartridgeClass *self)
+{
+    uint8_t type = self->context->header->type;
+    return type == 0x05 || type == 0x06;
+}
+
+static bool mbc_3(CartridgeClass *self)
+{
+    uint8_t type = self->context->header->type;
+    return (type >= 0x0F && type <= 0x13);
+}
+
+static bool mbc_5(CartridgeClass *self)
+{
+    uint8_t type = self->context->header->type;
+    return (type >= 0x19 && type <= 0x1E);
+}
+
+static bool mbc_6(CartridgeClass *self)
+{
+    uint8_t type = self->context->header->type;
+    return type == 0x20;
+}
+
+static bool mbc_7(CartridgeClass *self)
+{
+    uint8_t type = self->context->header->type;
+    return type == 0x22;
 }
 
 static bool battery(CartridgeClass *self)
 {
-    return self->context->header->type == 0x03;
+    uint8_t type = self->context->header->type;
+    return type == 0x03 || type == 0x06 || type == 0x09 || type == 0x0D
+        || type == 0x0F || type == 0x10 || type == 0x13 || type == 0x1B
+        || type == 0x1E || type == 0x22;
+}
+
+static bool rtc(CartridgeClass *self)
+{
+    uint8_t type = self->context->header->type;
+    return type == 0x0F || type == 0x10;
 }
 
 static void setup_banks(CartridgeClass *self)
@@ -186,19 +562,19 @@ static void setup_banks(CartridgeClass *self)
     for (int i = 0; i < 16; i++) {
         self->context->ram_banks[i] = NULL;
 
-        if (self->context->header->ram_size == 2 && i == 0) {
+        if (self->mbc_2(self) && i == 0) {
+            self->context->ram_banks[i] = calloc(512, 1);
+            self->set_banks |= 1 << i;
+        } else if (self->context->header->ram_size == 2 && i == 0) {
             self->context->ram_banks[i] = calloc(0x2000, 1);
             self->set_banks |= 1 << i;
-        }
-        if (self->context->header->ram_size == 3 && i < 4) {
+        } else if (self->context->header->ram_size == 3 && i < 4) {
             self->context->ram_banks[i] = calloc(0x2000, 1);
             self->set_banks |= 1 << i;
-        }
-        if (self->context->header->ram_size == 4 && i < 16) {
+        } else if (self->context->header->ram_size == 4 && i < 16) {
             self->context->ram_banks[i] = calloc(0x2000, 1);
             self->set_banks |= 1 << i;
-        }
-        if (self->context->header->ram_size == 5 && i < 8) {
+        } else if (self->context->header->ram_size == 5 && i < 8) {
             self->context->ram_banks[i] = calloc(0x2000, 1);
             self->set_banks |= 1 << i;
         }
@@ -206,6 +582,23 @@ static void setup_banks(CartridgeClass *self)
 
     self->context->ram_bank = self->context->ram_banks[0];
     self->context->rom_bank_x = self->context->rom_data + 0x4000;
+
+    if (self->mbc_3(self) && self->context->has_rtc) {
+        self->context->rtc_s = 0;
+        self->context->rtc_m = 0;
+        self->context->rtc_h = 0;
+        self->context->rtc_dl = 0;
+        self->context->rtc_dh = 0;
+        time(&self->context->rtc_last_time);
+    }
+
+    if (self->mbc_7(self)) {
+        self->context->mbc7_state = 0;
+        self->context->mbc7_buffer = 0;
+        self->context->mbc7_cs = false;
+        self->context->mbc7_clk = false;
+        self->context->mbc7_prev_clk = false;
+    }
 }
 
 static void load_battery(CartridgeClass *self)
@@ -223,7 +616,27 @@ static void load_battery(CartridgeClass *self)
         return;
     }
 
-    fread(self->context->ram_bank, 0x2000, 1, stream);
+    if (self->mbc_2(self)) {
+        fread(self->context->ram_bank, 512, 1, stream);
+    } else {
+        for (int i = 0; i < 16; i++) {
+            if (self->set_banks & (1 << i) && self->context->ram_banks[i]) {
+                fread(self->context->ram_banks[i], 0x2000, 1, stream);
+            }
+        }
+    }
+
+    if (self->mbc_3(self) && self->context->has_rtc) {
+        fread(&self->context->rtc_s, sizeof(uint8_t), 1, stream);
+        fread(&self->context->rtc_m, sizeof(uint8_t), 1, stream);
+        fread(&self->context->rtc_h, sizeof(uint8_t), 1, stream);
+        fread(&self->context->rtc_dl, sizeof(uint8_t), 1, stream);
+        fread(&self->context->rtc_dh, sizeof(uint8_t), 1, stream);
+        fread(&self->context->rtc_last_time, sizeof(time_t), 1, stream);
+
+        self->latch_rtc(self);
+    }
+
     fclose(stream);
 }
 
@@ -242,8 +655,29 @@ static void save_battery(CartridgeClass *self)
         return;
     }
 
-    fwrite(self->context->ram_bank, 0x2000, 1, stream);
+    if (self->mbc_2(self)) {
+        fwrite(self->context->ram_bank, 512, 1, stream);
+    } else {
+        for (int i = 0; i < 16; i++) {
+            if (self->set_banks & (1 << i) && self->context->ram_banks[i]) {
+                fwrite(self->context->ram_banks[i], 0x2000, 1, stream);
+            }
+        }
+    }
+
+    if (self->mbc_3(self) && self->context->has_rtc) {
+        self->latch_rtc(self);
+
+        fwrite(&self->context->rtc_s, sizeof(uint8_t), 1, stream);
+        fwrite(&self->context->rtc_m, sizeof(uint8_t), 1, stream);
+        fwrite(&self->context->rtc_h, sizeof(uint8_t), 1, stream);
+        fwrite(&self->context->rtc_dl, sizeof(uint8_t), 1, stream);
+        fwrite(&self->context->rtc_dh, sizeof(uint8_t), 1, stream);
+        fwrite(&self->context->rtc_last_time, sizeof(time_t), 1, stream);
+    }
+
     fclose(stream);
+    self->context->needs_save = false;
 }
 
 const CartridgeClass init_cartridge = {
@@ -350,7 +784,7 @@ const CartridgeClass init_cartridge = {
             [0x92] = "Video system",
             [0x93] = "Ocean/Acclaim",
             [0x95] = "Varie",
-            [0x96] = "Yonezawa/s’pal",
+            [0x96] = "Yonezawa/s'pal",
             [0x97] = "Kaneko",
             [0x99] = "Pack in soft",
             [0xA4] = "Konami (Yu-Gi-Oh!)",
@@ -361,10 +795,27 @@ const CartridgeClass init_cartridge = {
     .read = read,
     .write = write,
     .mbc_1 = mbc_1,
+    .mbc_2 = mbc_2,
+    .mbc_3 = mbc_3,
+    .mbc_5 = mbc_5,
+    .mbc_6 = mbc_6,
+    .mbc_7 = mbc_7,
     .battery = battery,
+    .rtc = rtc,
+    .write_mbc1 = write_mbc1,
+    .write_mbc2 = write_mbc2,
+    .write_mbc3 = write_mbc3,
+    .write_mbc5 = write_mbc5,
+    .write_mbc6 = write_mbc6,
+    .write_mbc7 = write_mbc7,
+    .update_mbc6_banks = update_mbc6_banks,
+    .handle_mbc7_transfer = handle_mbc7_transfer,
+    .read_rtc = read_rtc,
+    .write_rtc = write_rtc,
+    .latch_rtc = latch_rtc,
+    .setup_banks = setup_banks,
     .load_battery = load_battery,
     .save_battery = save_battery,
-    .setup_banks = setup_banks,
 };
 
 const class_t *Cartridge = (const class_t *) &init_cartridge;
