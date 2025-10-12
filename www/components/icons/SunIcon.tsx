@@ -1,7 +1,7 @@
-import type { JSX } from "preact";
+import type { JSX, SVGAttributes } from "preact";
 
 export function SunIcon(
-  props: JSX.SVGAttributes<SVGSVGElement>,
+  props: SVGAttributes<SVGSVGElement>,
 ): JSX.Element {
   return (
     <svg

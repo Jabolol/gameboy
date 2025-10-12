@@ -1,4 +1,4 @@
-import { JSX } from "preact";
+import { JSX, SVGAttributes } from "preact";
 import type { Theme } from "../types/theme.ts";
 import { ControlButton } from "./ControlButton.tsx";
 import { AutoIcon } from "./icons/AutoIcon.tsx";
@@ -10,7 +10,10 @@ interface ThemeButtonProps {
   onCycle: () => void;
 }
 
-const THEME_ICONS: Record<Theme, () => JSX.Element> = {
+const THEME_ICONS: Record<
+  Theme,
+  (props: SVGAttributes<SVGSVGElement>) => JSX.Element
+> = {
   light: SunIcon,
   dark: MoonIcon,
   auto: AutoIcon,
