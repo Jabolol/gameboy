@@ -101,6 +101,7 @@ export default function Canvas() {
         <canvas
           ref={canvasRef}
           id="canvas"
+          tabIndex={-1}
           width={CANVAS_DIMENSIONS.canvasWidth}
           height={CANVAS_DIMENSIONS.canvasHeight}
           onContextMenu={(evt: Event) => evt.preventDefault()}
@@ -109,6 +110,7 @@ export default function Canvas() {
             height: `${CANVAS_DIMENSIONS.canvasHeight * scale}px`,
             imageRendering: "pixelated",
             display: "block",
+            outline: "none",
           }}
         />
       </div>

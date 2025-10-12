@@ -1,11 +1,16 @@
-import { type StateUpdater, useEffect, useState } from "preact/hooks";
+import {
+  type Dispatch,
+  type StateUpdater,
+  useEffect,
+  useState,
+} from "preact/hooks";
 import type { StorageAdapter, StorageKey } from "../types/storage.ts";
 
 export function usePersistedState<T>(
   key: StorageKey,
   storage: StorageAdapter<T>,
   defaultValue: T,
-): [T, StateUpdater<T>] {
+): [T, Dispatch<StateUpdater<T>>] {
   const [state, setState] = useState<T>(() => storage.get(key, defaultValue));
 
   useEffect(() => {
