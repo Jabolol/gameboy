@@ -6,6 +6,7 @@ import * as $_app from "./routes/_app.tsx";
 import * as $_middleware from "./routes/_middleware.ts";
 import * as $index from "./routes/index.tsx";
 import * as $Canvas from "./islands/Canvas.tsx";
+import * as $ScriptLoader from "./islands/ScriptLoader.tsx";
 import { type Manifest } from "$fresh/server.ts";
 
 const manifest = {
@@ -16,6 +17,7 @@ const manifest = {
   },
   islands: {
     "./islands/Canvas.tsx": $Canvas,
+    "./islands/ScriptLoader.tsx": $ScriptLoader,
   },
   baseUrl: import.meta.url,
 } satisfies Manifest;

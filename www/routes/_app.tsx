@@ -1,4 +1,5 @@
 import { type PageProps } from "$fresh/server.ts";
+import ScriptLoader from "../islands/ScriptLoader.tsx";
 
 export default function App({ Component }: PageProps) {
   return (
@@ -10,9 +11,8 @@ export default function App({ Component }: PageProps) {
         <link rel="stylesheet" href="/styles.css" />
       </head>
       <body>
+        <ScriptLoader />
         <Component />
-        <script async src="/inject.js"></script>
-        <script async src="/gameboy.js"></script>
       </body>
     </html>
   );
