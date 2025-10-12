@@ -26,19 +26,25 @@ set(SRCDIR "${CMAKE_SOURCE_DIR}/sources")
 file(GLOB SRC "${SRCDIR}/*.c")
 
 add_executable(${PROJECT_NAME} ${SRC})
+target_compile_options(${PROJECT_NAME} PRIVATE -flto)
 
 add_subdirectory(${SDL2_PATH})
 include_directories(${SDL2_PATH}/include)
 target_link_libraries(${PROJECT_NAME} SDL2)
 
 set(WASM_FLAGS
+    -O3
     -s WASM=1
     -s USE_SDL=2
+    -s ENVIRONMENT=worker
+    -s ELIMINATE_DUPLICATE_FUNCTIONS=1
     -o www/static/gameboy.js
     -pthread
     -s PTHREAD_POOL_SIZE=1
     -s ASYNCIFY
     -s ALLOW_MEMORY_GROWTH=1
+    --closure 1
+    -flto
 )
 
 if(EXISTS "${PROJECT_SOURCE_DIR}/ROMs")
