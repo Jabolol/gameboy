@@ -1,16 +1,11 @@
 import "$std/dotenv/load.ts";
-import { App, Context, staticFiles } from "fresh";
-
-const middleware = async (ctx: Context<unknown>) => {
-  const resp = await ctx.next();
-  resp.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
-  resp.headers.set("Cross-Origin-Opener-Policy", "same-origin");
-  resp.headers.set("Cross-Origin-Resource-Policy", "same-origin");
-  return resp;
-};
+import { App, staticFiles } from "fresh";
+import policy from "./middleware/policy.ts";
+import ga4 from "./middleware/ga4.ts";
 
 export const app = new App()
-  .use(middleware)
+  .use(policy)
+  .use(ga4)
   .use(staticFiles())
   .fsRoutes();
 

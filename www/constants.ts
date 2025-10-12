@@ -6,7 +6,7 @@ export const CANVAS_DIMENSIONS: CanvasDimensions = {
   canvasHeight: 256,
 } as const;
 
-export const DEFAULT_MOBILE_SCALE: Scale = 2;
+export const DEFAULT_MOBILE_SCALE: Scale = 1;
 export const DEFAULT_DESKTOP_SCALE: Scale = 3;
 export const MOBILE_BREAKPOINT = 768;
 
