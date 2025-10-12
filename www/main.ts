@@ -1,13 +1,19 @@
-/// <reference no-default-lib="true" />
-/// <reference lib="dom" />
-/// <reference lib="dom.iterable" />
-/// <reference lib="dom.asynciterable" />
-/// <reference lib="deno.ns" />
-
 import "$std/dotenv/load.ts";
+import { App, Context, staticFiles } from "fresh";
 
-import { start } from "$fresh/server.ts";
-import manifest from "./fresh.gen.ts";
-import config from "./fresh.config.ts";
+const middleware = async (ctx: Context<unknown>) => {
+  const resp = await ctx.next();
+  resp.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+  resp.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  resp.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+  return resp;
+};
 
-await start(manifest, config);
+export const app = new App()
+  .use(middleware)
+  .use(staticFiles())
+  .fsRoutes();
+
+if (import.meta.main) {
+  await app.listen();
+}

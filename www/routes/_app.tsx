@@ -1,14 +1,43 @@
-import { type PageProps } from "$fresh/server.ts";
+import { type PageProps } from "fresh";
 import ScriptLoader from "../islands/ScriptLoader.tsx";
 
 export default function App({ Component }: PageProps) {
   return (
-    <html>
+    <html lang="en">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Gameboy</title>
-        <link rel="stylesheet" href="/styles.css" />
+        <meta
+          name="description"
+          content="An accurate gameboy emulator written in C from scratch with a Deno web interface"
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://gameboy.deno.dev/" />
+        <meta property="og:title" content="Gameboy Emulator" />
+        <meta
+          property="og:description"
+          content="An accurate gameboy emulator written in C from scratch with a Deno web interface"
+        />
+        <meta
+          property="og:image"
+          content="https://gameboy.deno.dev/web-ui.png"
+        />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="721" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="https://gameboy.deno.dev/" />
+        <meta name="twitter:title" content="Gameboy Emulator" />
+        <meta
+          name="twitter:description"
+          content="An accurate gameboy emulator written in C from scratch with a Deno web interface"
+        />
+        <meta
+          name="twitter:image"
+          content="https://gameboy.deno.dev/web-ui.png"
+        />
+        <meta name="theme-color" content="#ffffff" />
       </head>
       <body>
         <ScriptLoader />

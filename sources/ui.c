@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "../include/gameboy.h"
 
 static void constructor(void *ptr, va_list *args)
@@ -170,18 +171,22 @@ static void on_key(UIClass *self, bool down, SDL_Keycode code)
             self->parent->joypad->context->state.select = down;
             break;
         }
+        case SDLK_KP_8:
         case SDLK_UP: {
             self->parent->joypad->context->state.up = down;
             break;
         }
+        case SDLK_KP_2:
         case SDLK_DOWN: {
             self->parent->joypad->context->state.down = down;
             break;
         }
+        case SDLK_KP_4:
         case SDLK_LEFT: {
             self->parent->joypad->context->state.left = down;
             break;
         }
+        case SDLK_KP_6:
         case SDLK_RIGHT: {
             self->parent->joypad->context->state.right = down;
             break;

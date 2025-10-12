@@ -61,9 +61,29 @@ cmake -B build -G Ninja && cmake --build build
 The emulator is also available as a web version using `emscripten` and `deno`.
 In order to run the web version, you need to have `deno` installed.
 
-Some games are preloaded in the web version, just append `?game=${game}` to the
-url to load a different game. The supported games are shown
-[here](./www/static/inject.js).
+### game selection
+
+The web version includes 13 preloaded games. Append `?game=${game}` to the URL
+to load a specific game. If no game is specified, a random game will be loaded.
+
+The full list of games can be found in [www/utils/gameLoader.ts](./www/utils/gameLoader.ts).
+
+### ui controls
+
+The web interface includes a control dock with the following features:
+
+- **Canvas Scale** - Cycle between 1x, 2x, and 3x zoom levels (defaults to 2x
+  on mobile, 3x on desktop)
+- **Volume Control** - Adjust audio volume from 0 to 100% in 10% increments
+- **Theme System** - Three available themes: `light`, `dark`, and `auto`
+  (automatically detects the game's color palette by sampling canvas pixels and
+  switches between light/dark themes accordingly in real-time)
+- **Tiles Viewer** - Toggle visibility of internal gameboy tiles used to render
+  the current frame
+- **Persistent State** - All settings (scale, volume, theme, tiles) are saved
+  to localStorage and restored on page load
+
+### running locally
 
 The web version will bundle the ROMs available at `ROMs` directory and serve
 them at `http://localhost:8000`.
@@ -71,6 +91,8 @@ them at `http://localhost:8000`.
 ```bash
 deno task --cwd www start
 ```
+
+![](./www/static/web-ui.png)
 
 ## screenshots
 
