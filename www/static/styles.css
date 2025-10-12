@@ -1,3 +1,33 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-color: 255 255 255;
+    --text-color: 17 24 39;
+    --text-light: 75 85 99;
+    --border-color: 209 213 219;
+    --dock-bg: 255 255 255;
+    --dock-border: 255 255 255;
+  }
+
+  .dark {
+    --bg-color: 0 0 0;
+    --text-color: 243 244 246;
+    --text-light: 156 163 175;
+    --border-color: 55 65 81;
+    --dock-bg: 0 0 0;
+    --dock-border: 55 65 81;
+  }
+
+  * {
+    transition-property: background-color, border-color, color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 400ms;
+  }
+
+  canvas {
+    transition: none !important;
+  }
+}

@@ -38,6 +38,7 @@ set(WASM_FLAGS
     -pthread
     -s PTHREAD_POOL_SIZE=1
     -s ASYNCIFY
+    -s ALLOW_MEMORY_GROWTH=1
 )
 
 if(EXISTS "${PROJECT_SOURCE_DIR}/ROMs")
