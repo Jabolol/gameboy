@@ -85,11 +85,15 @@ The web interface includes a control dock with the following features:
 
 ### running locally
 
+> [!TIP]
+> To enable google analytics, set the `GA4_MEASUREMENT_ID` environment variable to
+> your GA4 measurement ID.
+
 The web version will bundle the ROMs available at `ROMs` directory and serve
-them at `http://localhost:8000`.
+them at `http://localhost:5173`.
 
 ```bash
-deno task --cwd www start
+deno task --cwd www dev
 ```
 
 ![](./www/static/web-ui.png)
