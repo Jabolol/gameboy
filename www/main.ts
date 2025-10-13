@@ -1,4 +1,4 @@
-import "$std/dotenv/load.ts";
+import "@std/dotenv/load";
 import { App, staticFiles } from "fresh";
 import policy from "./middleware/policy.ts";
 import ga4 from "./middleware/ga4.ts";
