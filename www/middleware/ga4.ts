@@ -1,5 +1,5 @@
 import { Context } from "fresh";
-import { GA4Report } from "../utils/ga4.ts";
+import { GA4Report } from "@kitsonk/ga4";
 
 const track = async (ctx: Context<unknown>) => {
   const res = await ctx.next();
