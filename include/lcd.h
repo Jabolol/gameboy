@@ -17,6 +17,8 @@ typedef struct lcd_aux {
     uint8_t (*read)(LCDClass *, uint16_t);
     void (*write)(LCDClass *, uint16_t, uint8_t);
     void (*update)(LCDClass *, uint8_t, uint8_t);
+    void (*hdma_start)(LCDClass *, uint8_t);
+    void (*hdma_tick)(LCDClass *);
 } LCDClass;
 
 extern const class_t *LCD;
