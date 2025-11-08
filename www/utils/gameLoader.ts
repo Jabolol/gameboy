@@ -12,14 +12,25 @@ const GAME_LIBRARY = [
   "batman.gb",
   "contra.gb",
   "donkey-kong.gb",
+  "dr-mario-dx.gb",
   "dr-mario.gb",
-  "kirby-dream.gb",
+  "galaga-dx.gb",
   "kirby-dream-2.gb",
+  "kirby-dream-dx.gb",
+  "kirby-dream.gb",
   "megaman-willy.gb",
+  "pokemon-crystal.gbc",
+  "pokemon-gold.gbc",
+  "pokemon-silver.gbc",
   "pokemon-yellow.gb",
+  "super-mario-2.gb",
+  "super-mario-dx.gbc",
   "super-mario.gb",
+  "tetris-dx.gb",
   "tetris.gb",
   "trip-world.gb",
+  "wario-land-3.gbc",
+  "zelda-dx.gbc",
   "zelda.gb",
 ] as const;
 
@@ -30,7 +41,22 @@ function isValidGame(game: string): game is GameName {
 }
 
 function normalizeGameName(game: string): string {
-  return game.endsWith(".gb") ? game : `${game}.gb`;
+  const validExtensions = [".gb", ".gbc"];
+
+  if (validExtensions.some((ext) => game.endsWith(ext))) {
+    return game;
+  }
+
+  const candidates = [
+    `${game}.gbc`,
+    `${game}.gb`,
+  ];
+
+  for (const candidate of candidates) {
+    if (isValidGame(candidate)) return candidate;
+  }
+
+  return game;
 }
 
 function getGameFromUrl(): GameName | null {
