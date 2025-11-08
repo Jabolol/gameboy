@@ -22,7 +22,7 @@ typedef struct pipeline_aux {
     void (*load_sprite_tile)(PipelineClass *);
     void (*load_sprite_data)(PipelineClass *, uint8_t);
     uint32_t (*fetch_sprite_pixels)(
-        PipelineClass *, int32_t, uint32_t, uint8_t);
+        PipelineClass *, int32_t, uint32_t, uint8_t, bool);
     bool (*visible)(PipelineClass *);
     void (*load_window_tile)(PipelineClass *);
 } PipelineClass;

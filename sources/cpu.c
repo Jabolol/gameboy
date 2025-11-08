@@ -301,7 +301,7 @@ static void set_register(CPUClass *self, register_type_t type, uint16_t val)
 {
     switch (type) {
         case RT_A: self->context->registers.a = val & 0xFF; break;
-        case RT_F: self->context->registers.f = val & 0xFF; break;
+        case RT_F: self->context->registers.f = val & 0xF0; break;
         case RT_B: self->context->registers.b = val & 0xFF; break;
         case RT_C: self->context->registers.c = val & 0xFF; break;
         case RT_D: self->context->registers.d = val & 0xFF; break;
@@ -350,7 +350,7 @@ static void set_register8(CPUClass *self, register_type_t reg, uint8_t val)
 {
     switch (reg) {
         case RT_A: self->context->registers.a = val & 0xFF; break;
-        case RT_F: self->context->registers.f = val & 0xFF; break;
+        case RT_F: self->context->registers.f = val & 0xF0; break;
         case RT_B: self->context->registers.b = val & 0xFF; break;
         case RT_C: self->context->registers.c = val & 0xFF; break;
         case RT_D: self->context->registers.d = val & 0xFF; break;

@@ -112,6 +112,16 @@ static int32_t run(GameboyClass *self, int argc, char **argv)
         return 1;
     }
 
+    if (self->cartridge->context->header->cgb_flag & 0x80) {
+        self->context->hw_mode = HW_CGB;
+        self->cpu->context->registers.a = 0x11;
+        LOG("Running in CGB mode");
+    } else {
+        self->context->hw_mode = HW_DMG;
+        self->cpu->context->registers.a = 0x01;
+        LOG("Running in DMG mode");
+    }
+
     LOG("Cartridge successfully loaded");
 
     if (pthread_create(&thread, NULL, self->cpu_run, self) != 0) {
