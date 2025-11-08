@@ -61,12 +61,14 @@ static uint8_t oam_read(PPUClass *self, uint16_t address)
 
 static void vram_write(PPUClass *self, uint16_t address, uint8_t value)
 {
-    self->context->vram[address - 0x8000] = value;
+    uint16_t offset = (self->context->vram_bank * 0x2000) + (address - 0x8000);
+    self->context->vram[offset] = value;
 }
 
 static uint8_t vram_read(PPUClass *self, uint16_t address)
 {
-    return self->context->vram[address - 0x8000];
+    uint16_t offset = (self->context->vram_bank * 0x2000) + (address - 0x8000);
+    return self->context->vram[offset];
 }
 
 static void tick(PPUClass *self)
@@ -83,11 +85,7 @@ static void tick(PPUClass *self)
 
 static void increment_y(PPUClass *self)
 {
-    if (self->parent->pipeline->visible(self->parent->pipeline)
-        && self->parent->lcd->context->y_coord
-            >= self->parent->lcd->context->window_y
-        && self->parent->lcd->context->y_coord
-            < self->parent->lcd->context->window_y + Y_RES) {
+    if (self->context->window_rendered_this_line) {
         self->parent->ppu->context->window_line += 1;
     }
 
@@ -159,6 +157,7 @@ static void mode_vblank(PPUClass *self)
             self->parent->lcd->context->status |= MODE_OAM;
             self->parent->lcd->context->y_coord = 0;
             self->parent->ppu->context->window_line = 0;
+            self->context->window_triggered = false;
         }
         self->context->line_ticks = 0;
     }
@@ -193,28 +192,40 @@ static void load_line_sprites(PPUClass *self)
             entry->entry = *e;
             entry->next = NULL;
 
-            if (!self->context->line_sprites
-                || self->context->line_sprites->entry.x > e->x) {
-                entry->next = self->context->line_sprites;
-                self->context->line_sprites = entry;
-                continue;
-            }
-
-            oam_line_entry_t *line_entry = self->context->line_sprites;
-            oam_line_entry_t *prev = line_entry;
-
-            while (line_entry) {
-                if (line_entry->entry.x > e->x) {
-                    prev->next = entry;
-                    entry->next = line_entry;
-                    break;
+            if (self->parent->context->hw_mode == HW_CGB) {
+                if (!self->context->line_sprites) {
+                    self->context->line_sprites = entry;
+                } else {
+                    oam_line_entry_t *tail = self->context->line_sprites;
+                    while (tail->next) {
+                        tail = tail->next;
+                    }
+                    tail->next = entry;
                 }
-                if (!line_entry->next) {
-                    line_entry->next = entry;
-                    break;
+            } else {
+                if (!self->context->line_sprites
+                    || self->context->line_sprites->entry.x > e->x) {
+                    entry->next = self->context->line_sprites;
+                    self->context->line_sprites = entry;
+                    continue;
                 }
-                prev = line_entry;
-                line_entry = line_entry->next;
+
+                oam_line_entry_t *line_entry = self->context->line_sprites;
+                oam_line_entry_t *prev = line_entry;
+
+                while (line_entry) {
+                    if (line_entry->entry.x > e->x) {
+                        prev->next = entry;
+                        entry->next = line_entry;
+                        break;
+                    }
+                    if (!line_entry->next) {
+                        line_entry->next = entry;
+                        break;
+                    }
+                    prev = line_entry;
+                    line_entry = line_entry->next;
+                }
             }
         }
     }
@@ -235,7 +246,14 @@ static void mode_oam(PPUClass *self)
     if (self->context->line_ticks == 1) {
         self->context->line_sprites = 0;
         self->context->line_sprite_count = 0;
+        self->context->window_rendered_this_line = false;
         self->load_line_sprites(self);
+
+        if (!self->context->window_triggered && LCDC_WIN_ENABLE
+            && self->parent->lcd->context->y_coord
+                == self->parent->lcd->context->window_y) {
+            self->context->window_triggered = true;
+        }
     }
 }
 
@@ -251,6 +269,15 @@ static void mode_transfer(PPUClass *self)
         if (self->parent->lcd->context->status & SS_HBLANK) {
             self->parent->cpu->request_interrupt(
                 self->parent->cpu, IT_LCD_STAT);
+        }
+
+        if (self->parent->context->hw_mode == HW_CGB
+            && self->parent->lcd->context->hdma.active
+            && self->parent->lcd->context->hdma.hblank_mode
+            && self->parent->lcd->context->y_coord < Y_RES) {
+            for (int i = 0; i < 0x10; i++) {
+                self->parent->lcd->hdma_tick(self->parent->lcd);
+            }
         }
     }
 }

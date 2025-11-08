@@ -35,8 +35,8 @@ static void fifo_push(PipelineClass *self, uint32_t value)
     self->parent->ppu->context->pixel_context->pixel_fifo.size++;
 }
 
-static uint32_t fetch_sprite_pixels(
-    PipelineClass *self, int32_t bit, uint32_t color, uint8_t bg_color)
+static uint32_t fetch_sprite_pixels(PipelineClass *self, int32_t bit,
+    uint32_t color, uint8_t bg_color, bool bg_priority)
 {
     for (int32_t i = 0; i < self->parent->ppu->context->fetch_entry_count;
         i++) {
@@ -54,37 +54,39 @@ static uint32_t fetch_sprite_pixels(
             continue;
         }
 
-        bit = (7 - offset);
-
-        if (self->parent->ppu->context->fetched_entries[i].f_x_flip) {
-            bit = offset;
-        }
+        uint8_t attrs =
+            self->parent->ppu->context->fetched_entries[i].attributes;
+        bit = ((attrs >> 5) & 1) ? offset : (7 - offset);
 
         uint8_t hi = !!(
             self->parent->ppu->context->pixel_context->fetch_entry_data[i * 2]
             & (1 << bit));
-
         uint8_t lo = !!(self->parent->ppu->context->pixel_context
                              ->fetch_entry_data[(i * 2) + 1]
                          & (1 << bit))
             << 1;
 
-        bool bg_priority =
-            self->parent->ppu->context->fetched_entries[i].f_bgp;
-
-        if (!(hi | lo)) {
+        uint8_t sprite_color = hi | lo;
+        if (!sprite_color) {
             continue;
         }
 
-        if (!bg_priority || bg_color == 0) {
-            color = (self->parent->ppu->context->fetched_entries[i].f_pn)
-                ? self->parent->lcd->context->sprite2_colors[hi | lo]
-                : self->parent->lcd->context->sprite1_colors[hi | lo];
-
-            if (hi | lo) {
-                break;
+        if (self->parent->context->hw_mode == HW_CGB) {
+            if (bg_color != 0 && LCDC_BGW_ENABLE
+                && (((attrs >> 7) & 1) || bg_priority)) {
+                return color;
             }
+            color = self->parent->lcd->context
+                        ->sprite_colors_cgb[attrs & 0x07][sprite_color];
+        } else {
+            if (((attrs >> 7) & 1) && bg_color != 0) {
+                return color;
+            }
+            color = ((attrs >> 4) & 1)
+                ? self->parent->lcd->context->sprite2_colors[sprite_color]
+                : self->parent->lcd->context->sprite1_colors[sprite_color];
         }
+        break;
     }
 
     return color;
@@ -119,8 +121,15 @@ static bool fifo_add(PipelineClass *self)
     int32_t x = self->parent->ppu->context->pixel_context->fetch_x
         - (MAX_FIFO_ITEMS - (self->parent->lcd->context->scroll_x % 8));
 
+    uint8_t attrs =
+        self->parent->ppu->context->pixel_context->bg_fetch_data[3];
+
     for (int8_t i = 0; i < MAX_FIFO_ITEMS; i++) {
-        int8_t bit = 7 - i;
+        int8_t bit =
+            (((attrs >> 5) & 1) && self->parent->context->hw_mode == HW_CGB)
+            ? i
+            : (7 - i);
+
         uint8_t hi =
             !!(self->parent->ppu->context->pixel_context->bg_fetch_data[1]
                 & (1 << bit));
@@ -128,14 +137,22 @@ static bool fifo_add(PipelineClass *self)
             !!(self->parent->ppu->context->pixel_context->bg_fetch_data[2]
                 & (1 << bit))
             << 1;
-        uint32_t color = self->parent->lcd->context->bg_colors[hi | lo];
 
-        if (!LCDC_BGW_ENABLE) {
-            color = self->parent->lcd->context->bg_colors[0];
+        uint8_t color_index = hi | lo;
+        uint32_t color;
+
+        if (self->parent->context->hw_mode == HW_CGB) {
+            color = self->parent->lcd->context
+                        ->bg_colors_cgb[attrs & 0x07][color_index];
+        } else {
+            color = LCDC_BGW_ENABLE
+                ? self->parent->lcd->context->bg_colors[color_index]
+                : self->parent->lcd->context->bg_colors[0];
         }
 
         if (LCDC_OBJ_ENABLE) {
-            color = self->fetch_sprite_pixels(self, bit, color, hi | lo);
+            color = self->fetch_sprite_pixels(
+                self, bit, color, color_index, (attrs >> 7) & 1);
         }
 
         if (x >= 0) {
@@ -184,25 +201,36 @@ static void load_sprite_data(PipelineClass *self, uint8_t offset)
 
     for (int32_t i = 0; i < self->parent->ppu->context->fetch_entry_count;
         i++) {
-        uint8_t tile_y =
-            ((current_y + 16)
-                - self->parent->ppu->context->fetched_entries[i].y)
-            * 2;
+        oam_entry_t *entry = &self->parent->ppu->context->fetched_entries[i];
+        uint8_t tile_y = ((current_y + 16) - entry->y) * 2;
 
-        if (self->parent->ppu->context->fetched_entries[i].f_y_flip) {
+        if ((entry->attributes >> 6) & 1) {
             tile_y = ((sprite_height * 2) - 2) - tile_y;
         }
 
-        uint8_t tile_index =
-            self->parent->ppu->context->fetched_entries[i].tile;
-
+        uint8_t tile_index = entry->tile;
         if (sprite_height == 16) {
-            tile_index &= ~(1);
+            tile_index &= ~1;
+            if (tile_y >= 16) {
+                tile_index++;
+                tile_y -= 16;
+            }
+        }
+
+        uint16_t vram_addr = (tile_index * 16) + tile_y + offset;
+        uint8_t data;
+
+        if (self->parent->context->hw_mode == HW_CGB) {
+            uint16_t vram_offset =
+                ((entry->attributes >> 3) & 1) * 0x2000 + vram_addr;
+            data = self->parent->ppu->context->vram[vram_offset];
+        } else {
+            data =
+                self->parent->bus->read(self->parent->bus, 0x8000 + vram_addr);
         }
 
         self->parent->ppu->context->pixel_context
-            ->fetch_entry_data[(i * 2) + offset] = self->parent->bus->read(
-            self->parent->bus, 0x8000 + (tile_index * 16) + tile_y + offset);
+            ->fetch_entry_data[(i * 2) + offset] = data;
     }
 }
 
@@ -221,6 +249,19 @@ static void fetch(PipelineClass *self)
 
                 self->parent->ppu->context->pixel_context->bg_fetch_data[0] =
                     self->parent->bus->read(self->parent->bus, map_offset);
+
+                if (self->parent->context->hw_mode == HW_CGB) {
+                    uint8_t saved_vram_bank =
+                        self->parent->ppu->context->vram_bank;
+                    self->parent->ppu->context->vram_bank = 1;
+                    self->parent->ppu->context->pixel_context
+                        ->bg_fetch_data[3] =
+                        self->parent->bus->read(self->parent->bus, map_offset);
+                    self->parent->ppu->context->vram_bank = saved_vram_bank;
+                } else {
+                    self->parent->ppu->context->pixel_context
+                        ->bg_fetch_data[3] = 0;
+                }
 
                 if (LCDC_BGW_DATA_AREA == 0x8800) {
                     self->parent->ppu->context->pixel_context
@@ -243,10 +284,23 @@ static void fetch(PipelineClass *self)
                 self->parent->ppu->context->pixel_context->bg_fetch_data[0];
             uint32_t tile_y =
                 self->parent->ppu->context->pixel_context->tile_y;
+            uint8_t attrs =
+                self->parent->ppu->context->pixel_context->bg_fetch_data[3];
 
-            self->parent->ppu->context->pixel_context->bg_fetch_data[1] =
-                self->parent->bus->read(self->parent->bus,
-                    LCDC_BGW_DATA_AREA + (bgw_fetch_data * 16) + tile_y);
+            if (self->parent->context->hw_mode == HW_CGB) {
+                if ((attrs >> 6) & 1) {
+                    tile_y = 14 - tile_y;
+                }
+                uint16_t vram_addr = (LCDC_BGW_DATA_AREA - 0x8000)
+                    + (bgw_fetch_data * 16) + tile_y;
+                uint16_t vram_offset = ((attrs >> 3) & 1) * 0x2000 + vram_addr;
+                self->parent->ppu->context->pixel_context->bg_fetch_data[1] =
+                    self->parent->ppu->context->vram[vram_offset];
+            } else {
+                self->parent->ppu->context->pixel_context->bg_fetch_data[1] =
+                    self->parent->bus->read(self->parent->bus,
+                        LCDC_BGW_DATA_AREA + (bgw_fetch_data * 16) + tile_y);
+            }
 
             self->load_sprite_data(self, 0);
 
@@ -258,10 +312,24 @@ static void fetch(PipelineClass *self)
                 self->parent->ppu->context->pixel_context->bg_fetch_data[0];
             uint32_t tile_y =
                 self->parent->ppu->context->pixel_context->tile_y;
+            uint8_t attrs =
+                self->parent->ppu->context->pixel_context->bg_fetch_data[3];
 
-            self->parent->ppu->context->pixel_context->bg_fetch_data[2] =
-                self->parent->bus->read(self->parent->bus,
-                    LCDC_BGW_DATA_AREA + (bgw_fetch_data * 16) + tile_y + 1);
+            if (self->parent->context->hw_mode == HW_CGB) {
+                if ((attrs >> 6) & 1) {
+                    tile_y = 14 - tile_y;
+                }
+                uint16_t vram_addr = (LCDC_BGW_DATA_AREA - 0x8000)
+                    + (bgw_fetch_data * 16) + tile_y + 1;
+                uint16_t vram_offset = ((attrs >> 3) & 1) * 0x2000 + vram_addr;
+                self->parent->ppu->context->pixel_context->bg_fetch_data[2] =
+                    self->parent->ppu->context->vram[vram_offset];
+            } else {
+                self->parent->ppu->context->pixel_context->bg_fetch_data[2] =
+                    self->parent->bus->read(self->parent->bus,
+                        LCDC_BGW_DATA_AREA + (bgw_fetch_data * 16) + tile_y
+                            + 1);
+            }
 
             self->load_sprite_data(self, 1);
 
@@ -328,33 +396,37 @@ static void fifo_reset(PipelineClass *self)
 
 static void load_window_tile(PipelineClass *self)
 {
-    if (!self->visible(self)) {
+    if (!LCDC_WIN_ENABLE || !self->parent->ppu->context->window_triggered) {
         return;
     }
 
-    uint8_t window_y = self->parent->lcd->context->window_y;
+    uint8_t window_x = self->parent->lcd->context->window_x;
 
-    if (self->parent->ppu->context->pixel_context->fetch_x + 7
-            >= self->parent->lcd->context->window_x
-        && self->parent->ppu->context->pixel_context->fetch_x + 7
-            < self->parent->lcd->context->window_x + Y_RES + 14) {
-        if (self->parent->lcd->context->y_coord >= window_y
-            && self->parent->lcd->context->y_coord < window_y + X_RES) {
-            uint8_t tile_y = self->parent->ppu->context->window_line / 8;
+    if (self->parent->ppu->context->pixel_context->fetch_x + 7 >= window_x
+        && window_x < 167) {
+        uint8_t tile_y = self->parent->ppu->context->window_line / 8;
+        uint16_t map_offset = LCDC_WIN_MAP_AREA
+            + ((self->parent->ppu->context->pixel_context->fetch_x + 7
+                   - window_x)
+                / 8)
+            + (tile_y * 32);
 
-            self->parent->ppu->context->pixel_context->bg_fetch_data[0] =
-                self->parent->bus->read(self->parent->bus,
-                    LCDC_WIN_MAP_AREA
-                        + ((self->parent->ppu->context->pixel_context->fetch_x
-                               + 7 - self->parent->lcd->context->window_x)
-                            / 8)
-                        + (tile_y * 32));
+        self->parent->ppu->context->pixel_context->bg_fetch_data[0] =
+            self->parent->bus->read(self->parent->bus, map_offset);
 
-            if (LCDC_BGW_DATA_AREA == 0x8800) {
-                self->parent->ppu->context->pixel_context->bg_fetch_data[0] +=
-                    128;
-            }
+        if (self->parent->context->hw_mode == HW_CGB) {
+            uint8_t saved_vram_bank = self->parent->ppu->context->vram_bank;
+            self->parent->ppu->context->vram_bank = 1;
+            self->parent->ppu->context->pixel_context->bg_fetch_data[3] =
+                self->parent->bus->read(self->parent->bus, map_offset);
+            self->parent->ppu->context->vram_bank = saved_vram_bank;
         }
+
+        if (LCDC_BGW_DATA_AREA == 0x8800) {
+            self->parent->ppu->context->pixel_context->bg_fetch_data[0] += 128;
+        }
+
+        self->parent->ppu->context->window_rendered_this_line = true;
     }
 }
 
