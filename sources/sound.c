@@ -127,7 +127,7 @@ static float_t get_channel3_sample(SoundClass *self)
 static float_t get_channel4_sample(SoundClass *self)
 {
     sound_channel4_t *channel = &self->context->channel4;
-    if (channel->volume == 0) {
+    if (channel->volume == 0 || channel->period == 0) {
         return 0.0f;
     }
 
@@ -713,6 +713,10 @@ static void update_channel4(SoundClass *self, float_t dt)
                 }
             }
         }
+    }
+
+    if (channel->period == 0) {
+        return;
     }
 
     int32_t noise_freq = 524288 / channel->period;
