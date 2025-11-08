@@ -367,6 +367,11 @@ static void set_register8(CPUClass *self, register_type_t reg, uint8_t val)
 
 static bool step(CPUClass *self)
 {
+    if (self->parent->context->stop_cycles_remaining > 0) {
+        self->parent->cycles(self->parent, 1);
+        self->parent->context->stop_cycles_remaining -= 1;
+        return true;
+    }
     if (!self->context->halted) {
 #ifdef __CPU_DEBUG
         uint16_t pc = self->context->registers.pc;

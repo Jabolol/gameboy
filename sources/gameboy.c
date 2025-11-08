@@ -145,8 +145,9 @@ static int32_t run(GameboyClass *self, int argc, char **argv)
 
 static void cycles(GameboyClass *self, int32_t count)
 {
+    int32_t t_cycles = self->context->double_speed ? 2 : 4;
     for (int32_t i = 0; i < count; i++) {
-        for (int32_t n = 0; n < 4; n++) {
+        for (int32_t n = 0; n < t_cycles; n++) {
             self->context->ticks += 1;
             self->timer->tick(self->timer);
             self->ppu->tick(self->ppu);

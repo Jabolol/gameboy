@@ -108,6 +108,7 @@
     #define LCD_BG_PAL       0xFF47
     #define LCD_S1_PAL       0xFF48
     #define LCD_S2_PAL       0xFF49
+    #define KEY1             0xFF4D
     #define LCD_VBK          0xFF4F
     #define LCD_HDMA1        0xFF51
     #define LCD_HDMA2        0xFF52
@@ -163,6 +164,9 @@ typedef struct {
     uint64_t ticks;
     uint32_t prev_frame;
     hardware_mode_t hw_mode;
+    bool double_speed;
+    bool speed_switch_armed;
+    uint16_t stop_cycles_remaining;
 } emulator_context_t;
 
 typedef struct {

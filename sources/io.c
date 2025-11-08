@@ -28,6 +28,13 @@ static uint8_t read(IOClass *self, uint16_t address)
             return self->parent->sound->read(self->parent->sound, address);
         }
         case LCD_RANGE: {
+            if (address == KEY1) {
+                if (self->parent->context->hw_mode == HW_CGB) {
+                    return (self->parent->context->double_speed ? 0x80 : 0x00) |
+                           (self->parent->context->speed_switch_armed ? 0x01 : 0x00) | 0x7E;
+                }
+                return 0xFF;
+            }
             return self->parent->lcd->read(self->parent->lcd, address);
         }
         case LCD_OPRI: {
@@ -102,6 +109,12 @@ static void write(IOClass *self, uint16_t address, uint8_t value)
             break;
         }
         case LCD_RANGE: {
+            if (address == KEY1) {
+                if (self->parent->context->hw_mode == HW_CGB) {
+                    self->parent->context->speed_switch_armed = (value & 0x01) != 0;
+                }
+                break;
+            }
             self->parent->lcd->write(self->parent->lcd, address, value);
             break;
         }
