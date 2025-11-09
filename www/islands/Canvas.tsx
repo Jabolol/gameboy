@@ -28,7 +28,7 @@ import {
   numberStorage,
 } from "../utils/storage.ts";
 import { getCurrentGame } from "../utils/gameLoader.ts";
-import { gameboyState } from "../utils/scriptManager.ts";
+import { useGameboyInitializer } from "../hooks/useGameboyInitializer.ts";
 
 const scaleStorage = createTypedStorage<Scale>(
   (v) => Number(v) as Scale,
@@ -43,6 +43,8 @@ const themeStorage = createTypedStorage<Theme>(
 );
 
 export default function Canvas() {
+  const { loadedGame } = useGameboyInitializer();
+
   const [scale, setScale] = usePersistedState(
     STORAGE_KEYS.scale,
     scaleStorage,
@@ -92,7 +94,7 @@ export default function Canvas() {
     ? CANVAS_DIMENSIONS.canvasWidth
     : CANVAS_DIMENSIONS.gameScreenWidth;
 
-  const currentGame = gameboyState.value.loadedGame ??
+  const currentGame = loadedGame ??
     (typeof self !== "undefined" ? getCurrentGame() : null);
 
   return (

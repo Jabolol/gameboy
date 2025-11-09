@@ -1,12 +1,3 @@
-interface EmscriptenModule {
-  canvas: HTMLCanvasElement | null;
-  arguments: string[];
-}
-
-declare global {
-  var Module: EmscriptenModule | undefined;
-}
-
 const GAME_LIBRARY = [
   "asteroids.gb",
   "batman.gb",
@@ -76,22 +67,8 @@ function getRandomGame(): GameName {
   return GAME_LIBRARY[Math.floor(Math.random() * GAME_LIBRARY.length)];
 }
 
-function getGameToLoad(): GameName {
+export function getGameToLoad(): GameName {
   return getGameFromUrl() ?? getRandomGame();
-}
-
-export function initializeGameboyModule(): GameName | null {
-  if (typeof self === "undefined") return null;
-
-  const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
-  const game = getGameToLoad();
-
-  self.Module = {
-    canvas,
-    arguments: [`ROMs/${game}`],
-  };
-
-  return game;
 }
 
 export function getCurrentGame(): GameName | null {

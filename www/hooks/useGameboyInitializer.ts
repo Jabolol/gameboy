@@ -1,49 +1,39 @@
-import { useEffect } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { setupVolumeControl } from "../utils/audioSetup.ts";
-import { initializeGameboyModule } from "../utils/gameLoader.ts";
+import { getGameToLoad } from "../utils/gameLoader.ts";
 import type { GameName } from "../utils/gameLoader.ts";
-import { gameboyState, scriptManager } from "../utils/scriptManager.ts";
-
-async function initializeGameboy(): Promise<GameName | null> {
-  setupVolumeControl();
-  const game = initializeGameboyModule();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  return game;
-}
+import { useEmscriptenModule } from "./useEmscriptenModule.ts";
 
 export function useGameboyInitializer() {
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [game, setGame] = useState<GameName | null>(null);
+
   useEffect(() => {
-    if (gameboyState.value.initialized) return;
+    setupVolumeControl();
+    const canvasEl = document.getElementById("canvas") as
+      | HTMLCanvasElement
+      | null;
+    const selectedGame = getGameToLoad();
 
-    const initialize = async () => {
-      try {
-        const loadedGame = await initializeGameboy();
-
-        gameboyState.value = {
-          ...gameboyState.value,
-          initialized: true,
-          loadedGame: loadedGame ?? undefined,
-        };
-
-        await scriptManager.load("/gameboy.js", { async: true });
-
-        gameboyState.value = {
-          ...gameboyState.value,
-          scriptLoaded: true,
-        };
-
-        console.log("Gameboy initialized successfully");
-      } catch (error) {
-        gameboyState.value = {
-          ...gameboyState.value,
-          error: error instanceof Error ? error : new Error(String(error)),
-        };
-        console.error("Gameboy initialization failed:", error);
-      }
-    };
-
-    initialize();
+    setCanvas(canvasEl);
+    setGame(selectedGame);
   }, []);
 
-  return gameboyState.value;
+  const config = canvas && game
+    ? {
+      canvas,
+      arguments: [`ROMs/${game}`],
+      locateFile: (path: string) => `/${path}`,
+    }
+    : null;
+
+  const { instance, loading, error } = useEmscriptenModule(config);
+
+  return {
+    initialized: instance !== null,
+    scriptLoaded: instance !== null,
+    loadedGame: game ?? undefined,
+    loading,
+    error,
+  };
 }
