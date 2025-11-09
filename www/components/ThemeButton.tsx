@@ -24,7 +24,7 @@ export function ThemeButton({ theme, onCycle }: ThemeButtonProps) {
 
   return (
     <ControlButton onClick={onCycle} label={`Theme: ${theme}`}>
-      <Icon class="w-5 h-5" />
+      <Icon class="w-4 h-4 sm:w-5 sm:h-5" />
     </ControlButton>
   );
 }

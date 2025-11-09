@@ -96,9 +96,9 @@ export default function Canvas() {
     (typeof self !== "undefined" ? getCurrentGame() : null);
 
   return (
-    <div class="flex flex-col items-center gap-6">
+    <div class="flex flex-col items-center gap-3 sm:gap-6 px-2 sm:px-0">
       <div
-        class="overflow-hidden rounded-sm"
+        class="overflow-hidden rounded-sm max-w-full"
         style={{
           width: `${visibleWidth * scale}px`,
           height: `${CANVAS_DIMENSIONS.canvasHeight * scale}px`,
@@ -130,7 +130,7 @@ export default function Canvas() {
         )}
 
         <ControlButton onClick={cycleScale} label="Change scale" variant="text">
-          {scale}×
+          <span class="whitespace-nowrap">{scale}×</span>
         </ControlButton>
 
         <DockDivider />
@@ -151,7 +151,7 @@ export default function Canvas() {
           onClick={() => setShowTiles(!showTiles)}
           label={showTiles ? "Hide tiles" : "Show tiles"}
         >
-          <TilesIcon class="w-5 h-5" />
+          <TilesIcon class="w-4 h-4 sm:w-5 sm:h-5" />
         </ControlButton>
 
         <DockDivider />
@@ -160,10 +160,10 @@ export default function Canvas() {
           href="https://github.com/Jabolol/gameboy"
           target="_blank"
           rel="noopener noreferrer"
-          class="p-1.5 text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 transition-colors outline-none focus:outline-none"
+          class="p-1 sm:p-1.5 text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 transition-colors outline-none focus:outline-none shrink-0"
           aria-label="View on GitHub"
         >
-          <GitHubIcon class="w-5 h-5" />
+          <GitHubIcon class="w-4 h-4 sm:w-5 sm:h-5" />
         </a>
       </Dock>
     </div>

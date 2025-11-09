@@ -8,10 +8,10 @@ interface ControlButtonProps {
 }
 
 const BUTTON_CLASSES =
-  "p-1.5 text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 transition-colors outline-none focus:outline-none";
+  "p-1 sm:p-1.5 text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 transition-colors outline-none focus:outline-none flex-shrink-0";
 
 const TEXT_VARIANT_CLASSES =
-  "px-3 py-1.5 text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 transition-colors outline-none focus:outline-none";
+  "px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 transition-colors outline-none focus:outline-none flex-shrink-0";
 
 export function ControlButton({
   onClick,

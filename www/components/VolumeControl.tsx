@@ -16,15 +16,15 @@ export function VolumeControl({
   return (
     <>
       <ControlButton onClick={onVolumeDown} label="Volume down">
-        <MinusIcon class="w-5 h-5" />
+        <MinusIcon class="w-4 h-4 sm:w-5 sm:h-5" />
       </ControlButton>
 
-      <span class="px-2 text-sm font-medium text-gray-900 dark:text-gray-100 w-[3.5rem] text-center">
+      <span class="px-1 sm:px-2 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100 w-10 sm:w-14 text-center shrink-0">
         {Math.round(volume * 100)}%
       </span>
 
       <ControlButton onClick={onVolumeUp} label="Volume up">
-        <PlusIcon class="w-5 h-5" />
+        <PlusIcon class="w-4 h-4 sm:w-5 sm:h-5" />
       </ControlButton>
     </>
   );
