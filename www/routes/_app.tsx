@@ -1,5 +1,5 @@
 import { type PageProps } from "fresh";
-import ScriptLoader from "../islands/ScriptLoader.tsx";
+import ogImage from "../static/web-ui.png?url";
 
 export default function App({ Component }: PageProps) {
   return (
@@ -21,7 +21,7 @@ export default function App({ Component }: PageProps) {
         />
         <meta
           property="og:image"
-          content="https://gameboy.deno.dev/web-ui.png"
+          content={ogImage}
         />
         <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="1200" />
@@ -35,12 +35,11 @@ export default function App({ Component }: PageProps) {
         />
         <meta
           name="twitter:image"
-          content="https://gameboy.deno.dev/web-ui.png"
+          content={ogImage}
         />
         <meta name="theme-color" content="#ffffff" />
       </head>
       <body>
-        <ScriptLoader />
         <Component />
       </body>
     </html>
