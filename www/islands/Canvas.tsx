@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import { ControlButton } from "../components/ControlButton.tsx";
 import { Dock, DockDivider } from "../components/Dock.tsx";
+import { GameSelector } from "../components/GameSelector.tsx";
 import { GitHubIcon } from "../components/icons/GitHubIcon.tsx";
 import { ThemeButton } from "../components/ThemeButton.tsx";
 import { TilesIcon } from "../components/icons/TilesIcon.tsx";
@@ -26,6 +27,8 @@ import {
   createTypedStorage,
   numberStorage,
 } from "../utils/storage.ts";
+import { getCurrentGame } from "../utils/gameLoader.ts";
+import { gameboyState } from "../utils/scriptManager.ts";
 
 const scaleStorage = createTypedStorage<Scale>(
   (v) => Number(v) as Scale,
@@ -89,6 +92,9 @@ export default function Canvas() {
     ? CANVAS_DIMENSIONS.canvasWidth
     : CANVAS_DIMENSIONS.gameScreenWidth;
 
+  const currentGame = gameboyState.value.loadedGame ??
+    (typeof self !== "undefined" ? getCurrentGame() : null);
+
   return (
     <div class="flex flex-col items-center gap-6">
       <div
@@ -116,6 +122,13 @@ export default function Canvas() {
       </div>
 
       <Dock>
+        {currentGame && (
+          <>
+            <GameSelector currentGame={currentGame} />
+            <DockDivider />
+          </>
+        )}
+
         <ControlButton onClick={cycleScale} label="Change scale" variant="text">
           {scale}×
         </ControlButton>

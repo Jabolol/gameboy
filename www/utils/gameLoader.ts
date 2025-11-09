@@ -26,7 +26,7 @@ const GAME_LIBRARY = [
   "pokemon-silver.gbc",
   "pokemon-yellow.gb",
   "super-mario-2.gb",
-  "super-mario-dx.gbc",
+  "super-mario-deluxe.gbc",
   "super-mario.gb",
   "tetris-dx.gb",
   "tetris.gb",
@@ -62,7 +62,7 @@ function normalizeGameName(game: string): string {
 }
 
 function getGameFromUrl(): GameName | null {
-  if (typeof self === "undefined") return null;
+  if (typeof self === "undefined" || !self.location) return null;
 
   const urlParams = new URLSearchParams(self.location.search);
   const requestedGame = urlParams.get("game");
@@ -81,8 +81,8 @@ function getGameToLoad(): GameName {
   return getGameFromUrl() ?? getRandomGame();
 }
 
-export function initializeGameboyModule(): void {
-  if (typeof self === "undefined") return;
+export function initializeGameboyModule(): GameName | null {
+  if (typeof self === "undefined") return null;
 
   const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
   const game = getGameToLoad();
@@ -91,4 +91,21 @@ export function initializeGameboyModule(): void {
     canvas,
     arguments: [`ROMs/${game}`],
   };
+
+  return game;
 }
+
+export function getCurrentGame(): GameName | null {
+  return getGameFromUrl();
+}
+
+export function formatGameName(game: GameName): string {
+  return game
+    .replace(/\.gb[c]?$/, "")
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+export { GAME_LIBRARY };
+export type { GameName };

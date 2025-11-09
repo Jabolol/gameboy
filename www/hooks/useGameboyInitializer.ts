@@ -1,12 +1,14 @@
 import { useEffect } from "preact/hooks";
 import { setupVolumeControl } from "../utils/audioSetup.ts";
 import { initializeGameboyModule } from "../utils/gameLoader.ts";
+import type { GameName } from "../utils/gameLoader.ts";
 import { gameboyState, scriptManager } from "../utils/scriptManager.ts";
 
-async function initializeGameboy(): Promise<void> {
+async function initializeGameboy(): Promise<GameName | null> {
   setupVolumeControl();
-  initializeGameboyModule();
+  const game = initializeGameboyModule();
   await new Promise((resolve) => setTimeout(resolve, 0));
+  return game;
 }
 
 export function useGameboyInitializer() {
@@ -15,11 +17,12 @@ export function useGameboyInitializer() {
 
     const initialize = async () => {
       try {
-        await initializeGameboy();
+        const loadedGame = await initializeGameboy();
 
         gameboyState.value = {
           ...gameboyState.value,
           initialized: true,
+          loadedGame: loadedGame ?? undefined,
         };
 
         await scriptManager.load("/gameboy.js", { async: true });
