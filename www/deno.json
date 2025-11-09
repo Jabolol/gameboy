@@ -15,6 +15,8 @@
   "exclude": ["**/_fresh/*", "static/gameboy.*"],
   "imports": {
     "@fresh/plugin-vite": "jsr:@fresh/plugin-vite@^1.0.5",
+    "@kitsonk/ga4": "jsr:@kitsonk/ga4@^0.1.0",
+    "@std/dotenv": "jsr:@std/dotenv@^0.225.5",
     "fresh": "jsr:@fresh/core@^2.1.4",
     "preact": "npm:preact@^10.27.2",
     "@preact/signals": "npm:@preact/signals@^2.3.2",

@@ -66,13 +66,13 @@ In order to run the web version, you need to have `deno` installed.
 The web version includes 13 preloaded games. Append `?game=${game}` to the URL
 to load a specific game. If no game is specified, a random game will be loaded.
 
-The full list of games can be found in [www/utils/gameLoader.ts](./www/utils/gameLoader.ts).
+The full list of games can be found in [`www/utils/gameLoader.ts`](./www/utils/gameLoader.ts).
 
 ### ui controls
 
 The web interface includes a control dock with the following features:
 
-- **Canvas Scale** - Cycle between 1x, 2x, and 3x zoom levels (defaults to 2x
+- **Canvas Scale** - Cycle between 1x, 2x, and 3x zoom levels (defaults to 1x
   on mobile, 3x on desktop)
 - **Volume Control** - Adjust audio volume from 0 to 100% in 10% increments
 - **Theme System** - Three available themes: `light`, `dark`, and `auto`
