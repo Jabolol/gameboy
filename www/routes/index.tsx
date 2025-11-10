@@ -5,7 +5,7 @@ export default function Home() {
     <div
       className="flex items-center justify-center w-full min-h-screen bg-white dark:bg-black"
       style={{
-        backgroundColor: "var(--bg-color)",
+        backgroundColor: "rgb(var(--bg-color, 255 255 255))",
       }}
     >
       <Canvas />
