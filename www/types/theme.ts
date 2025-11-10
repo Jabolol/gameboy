@@ -1,7 +1,7 @@
 export const THEMES = ["light", "dark", "auto"] as const;
 export type Theme = typeof THEMES[number];
 
-export type DetectedTheme = "light" | "dark";
+export type DetectedTheme = "light" | "dark" | string;
 
 export type ThemeState =
   | { mode: "light" }

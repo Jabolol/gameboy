@@ -82,12 +82,32 @@ export default function Canvas() {
     self.audioVolumeControl?.setVolume(volume);
   }, [volume]);
 
+  const isColorDark = (hexColor: string): boolean => {
+    if (hexColor === "light") return false;
+    if (hexColor === "dark") return true;
+
+    const hex = hexColor.replace("#", "");
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+    return brightness < 128;
+  };
+
   useEffect(() => {
     const effectiveTheme = theme === "auto" ? detectedTheme : theme;
-    document.documentElement.classList.toggle(
-      "dark",
-      effectiveTheme === "dark",
-    );
+    const isDark = typeof effectiveTheme === "string" && effectiveTheme.startsWith("#")
+      ? isColorDark(effectiveTheme)
+      : effectiveTheme === "dark";
+
+    document.documentElement.classList.toggle("dark", isDark);
+
+    if (theme === "auto" && typeof detectedTheme === "string" && detectedTheme.startsWith("#")) {
+      document.documentElement.style.setProperty("--bg-color", detectedTheme);
+    } else {
+      document.documentElement.style.removeProperty("--bg-color");
+    }
   }, [theme, detectedTheme]);
 
   const visibleWidth = showTiles
@@ -100,7 +120,7 @@ export default function Canvas() {
   return (
     <div class="flex flex-col items-center gap-3 sm:gap-6 px-2 sm:px-0">
       <div
-        class="overflow-hidden rounded-sm max-w-full"
+        class="overflow-hidden rounded-sm max-w-full relative"
         style={{
           width: `${visibleWidth * scale}px`,
           height: `${CANVAS_DIMENSIONS.canvasHeight * scale}px`,
@@ -123,7 +143,7 @@ export default function Canvas() {
         />
       </div>
 
-      <Dock>
+      <Dock isAutoMode={theme === "auto"}>
         {currentGame && (
           <>
             <GameSelector currentGame={currentGame} />

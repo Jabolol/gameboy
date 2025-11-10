@@ -4,8 +4,7 @@ import { SAMPLING_CONFIG } from "../constants.ts";
 import type { SamplingConfig } from "../types/canvas.ts";
 import type { DetectedTheme, Theme } from "../types/theme.ts";
 import {
-  analyzePixels,
-  detectThemeFromAnalysis,
+  detectDominantColor,
 } from "../utils/colorSampling.ts";
 import { ConsensusTracker } from "../utils/consensus.ts";
 
@@ -13,7 +12,7 @@ export function useThemeDetection(
   theme: Theme,
   canvasRef: RefObject<HTMLCanvasElement>,
 ): DetectedTheme {
-  const [detectedTheme, setDetectedTheme] = useState<DetectedTheme>("light");
+  const [detectedTheme, setDetectedTheme] = useState<DetectedTheme>("#ffffff");
   const consensusRef = useRef(
     new ConsensusTracker<DetectedTheme>(
       SAMPLING_CONFIG.historySize,
@@ -59,11 +58,7 @@ export function useThemeDetection(
         samplingConfig.width,
         samplingConfig.height,
       );
-      const analysis = analyzePixels(imageData, samplingConfig);
-      const detected = detectThemeFromAnalysis(
-        analysis,
-        SAMPLING_CONFIG.borderDominanceThreshold,
-      );
+      const detected = detectDominantColor(imageData, samplingConfig);
 
       consensusRef.current.add(detected);
 
