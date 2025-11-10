@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { setupVolumeControl } from "../utils/audioSetup.ts";
 import { getGameToLoad } from "../utils/gameLoader.ts";
 import type { GameName } from "../utils/gameLoader.ts";
@@ -19,13 +19,15 @@ export function useGameboyInitializer() {
     setGame(selectedGame);
   }, []);
 
-  const config = canvas && game
-    ? {
+  const config = useMemo(() => {
+    if (!canvas || !game) return null;
+
+    return {
       canvas,
       arguments: [`ROMs/${game}`],
       locateFile: (path: string) => `/${path}`,
-    }
-    : null;
+    };
+  }, [canvas, game]);
 
   const { instance, loading, error } = useEmscriptenModule(config);
 
