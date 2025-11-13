@@ -34,7 +34,8 @@ static void hdma_start(LCDClass *self, uint8_t value)
     }
 
     self->context->hdma.source =
-        ((self->context->hdma.hdma1 << 8) | self->context->hdma.hdma2) & 0xFFF0;
+        ((self->context->hdma.hdma1 << 8) | self->context->hdma.hdma2)
+        & 0xFFF0;
     self->context->hdma.dest =
         (((self->context->hdma.hdma3 << 8) | self->context->hdma.hdma4)
             & 0x1FF0)
@@ -58,8 +59,8 @@ static void hdma_tick(LCDClass *self)
         return;
     }
 
-    uint8_t data = self->parent->bus->read(self->parent->bus,
-        self->context->hdma.source++);
+    uint8_t data = self->parent->bus->read(
+        self->parent->bus, self->context->hdma.source++);
     self->parent->bus->write(
         self->parent->bus, self->context->hdma.dest++, data);
 
@@ -150,18 +151,10 @@ static void write(LCDClass *self, uint16_t address, uint8_t value)
                 self->parent->ppu->context->vram_bank = value & 0x01;
             }
             return;
-        case LCD_HDMA1:
-            self->context->hdma.hdma1 = value;
-            return;
-        case LCD_HDMA2:
-            self->context->hdma.hdma2 = value & 0xF0;
-            return;
-        case LCD_HDMA3:
-            self->context->hdma.hdma3 = value & 0x1F;
-            return;
-        case LCD_HDMA4:
-            self->context->hdma.hdma4 = value & 0xF0;
-            return;
+        case LCD_HDMA1: self->context->hdma.hdma1 = value; return;
+        case LCD_HDMA2: self->context->hdma.hdma2 = value & 0xF0; return;
+        case LCD_HDMA3: self->context->hdma.hdma3 = value & 0x1F; return;
+        case LCD_HDMA4: self->context->hdma.hdma4 = value & 0xF0; return;
         case LCD_HDMA5:
             if (self->parent->context->hw_mode == HW_CGB) {
                 self->hdma_start(self, value);

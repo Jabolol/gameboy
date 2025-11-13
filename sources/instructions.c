@@ -108,10 +108,11 @@ static void proc_rla(CPUClass *cpu)
 
 static void proc_stop(CPUClass *cpu)
 {
-    if (cpu->parent->context->hw_mode == HW_CGB &&
-        cpu->parent->context->speed_switch_armed) {
+    if (cpu->parent->context->hw_mode == HW_CGB
+        && cpu->parent->context->speed_switch_armed) {
         cpu->parent->context->speed_switch_armed = false;
-        cpu->parent->context->double_speed = !cpu->parent->context->double_speed;
+        cpu->parent->context->double_speed =
+            !cpu->parent->context->double_speed;
         cpu->parent->context->stop_cycles_remaining = 2050;
     }
 }
