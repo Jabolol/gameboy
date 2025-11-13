@@ -36,7 +36,7 @@ static const char *get_rom_type(CartridgeClass *self)
         : "UNKNOWN";
 }
 
-static bool load(CartridgeClass *self, char *path)
+static bool load(CartridgeClass *self, const char *path)
 {
     strncpy(self->context->filename, path, sizeof(self->context->filename));
     FILE *stream = fopen(path, "r");
@@ -115,7 +115,8 @@ static uint8_t read(CartridgeClass *self, uint16_t address)
     if (address < 0x4000) {
         if (self->mbc_1(self) && self->context->banking_mode == 1) {
             uint8_t rom_bank_mask = (self->context->rom_size / 0x4000) - 1;
-            uint8_t bank = (self->context->rom_bank_value & 0xE0) & rom_bank_mask;
+            uint8_t bank =
+                (self->context->rom_bank_value & 0xE0) & rom_bank_mask;
             return self->context->rom_data[(bank * 0x4000) + address];
         }
         return self->context->rom_data[address];
@@ -210,9 +211,10 @@ static void write_mbc1(CartridgeClass *self, uint16_t address, uint8_t value)
             self->context->rom_bank_value =
                 (self->context->rom_bank_value & 0x60) | lower_bits;
             uint8_t rom_bank_mask = (self->context->rom_size / 0x4000) - 1;
-            uint8_t masked_bank = self->context->rom_bank_value & rom_bank_mask;
-            self->context->rom_bank_x = self->context->rom_data
-                + (0x4000 * masked_bank);
+            uint8_t masked_bank =
+                self->context->rom_bank_value & rom_bank_mask;
+            self->context->rom_bank_x =
+                self->context->rom_data + (0x4000 * masked_bank);
             break;
         }
         case 0x4000: {
@@ -220,9 +222,10 @@ static void write_mbc1(CartridgeClass *self, uint16_t address, uint8_t value)
             self->context->rom_bank_value =
                 (self->context->rom_bank_value & 0x1F) | upper_bits;
             uint8_t rom_bank_mask = (self->context->rom_size / 0x4000) - 1;
-            uint8_t masked_bank = self->context->rom_bank_value & rom_bank_mask;
-            self->context->rom_bank_x = self->context->rom_data
-                + (0x4000 * masked_bank);
+            uint8_t masked_bank =
+                self->context->rom_bank_value & rom_bank_mask;
+            self->context->rom_bank_x =
+                self->context->rom_data + (0x4000 * masked_bank);
             self->context->ram_bank_value = value & 0x03;
             if (self->context->ram_banking) {
                 if (self->context->needs_save) {
@@ -230,8 +233,9 @@ static void write_mbc1(CartridgeClass *self, uint16_t address, uint8_t value)
                 }
                 if (self->context->ram_banks[self->context->ram_bank_value]
                     != NULL) {
-                    self->context->ram_bank = self->context
-                        ->ram_banks[self->context->ram_bank_value];
+                    self->context->ram_bank =
+                        self->context
+                            ->ram_banks[self->context->ram_bank_value];
                 }
             }
             break;
@@ -245,8 +249,9 @@ static void write_mbc1(CartridgeClass *self, uint16_t address, uint8_t value)
                 }
                 if (self->context->ram_banks[self->context->ram_bank_value]
                     != NULL) {
-                    self->context->ram_bank = self->context
-                        ->ram_banks[self->context->ram_bank_value];
+                    self->context->ram_bank =
+                        self->context
+                            ->ram_banks[self->context->ram_bank_value];
                 }
             }
             break;

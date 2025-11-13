@@ -16,7 +16,7 @@ typedef struct cartridge_aux {
     /* Methods */
     const char *(*get_license)(CartridgeClass *);
     const char *(*get_rom_type)(CartridgeClass *);
-    bool (*load)(CartridgeClass *, char *);
+    bool (*load)(CartridgeClass *, const char *);
     uint8_t (*read)(CartridgeClass *, uint16_t);
     void (*write)(CartridgeClass *, uint16_t, uint8_t);
     bool (*mbc_1)(CartridgeClass *);
