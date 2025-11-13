@@ -54,6 +54,8 @@ set(WASM_FLAGS
     -s ALLOW_MEMORY_GROWTH=1
     -s SHARED_MEMORY=1
     -s WASM_BIGINT=1
+    -s EXPORTED_FUNCTIONS=["_gameboy_create","_gameboy_start","_gameboy_destroy"]
+    -s EXPORTED_RUNTIME_METHODS=["ccall","cwrap"]
     --closure 1
     -flto
 )

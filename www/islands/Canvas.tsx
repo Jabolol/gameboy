@@ -43,7 +43,7 @@ const themeStorage = createTypedStorage<Theme>(
 );
 
 export default function Canvas() {
-  const { loadedGame } = useGameboyInitializer();
+  const { loadedGame, switchGame } = useGameboyInitializer();
 
   const [scale, setScale] = usePersistedState(
     STORAGE_KEYS.scale,
@@ -97,18 +97,25 @@ export default function Canvas() {
 
   useEffect(() => {
     const effectiveTheme = theme === "auto" ? detectedTheme : theme;
-    const isDark = typeof effectiveTheme === "string" && effectiveTheme.startsWith("#")
-      ? isColorDark(effectiveTheme)
-      : effectiveTheme === "dark";
+    const isDark =
+      typeof effectiveTheme === "string" && effectiveTheme.startsWith("#")
+        ? isColorDark(effectiveTheme)
+        : effectiveTheme === "dark";
 
     document.documentElement.classList.toggle("dark", isDark);
 
-    if (theme === "auto" && typeof detectedTheme === "string" && detectedTheme.startsWith("#")) {
+    if (
+      theme === "auto" && typeof detectedTheme === "string" &&
+      detectedTheme.startsWith("#")
+    ) {
       const hex = detectedTheme.replace("#", "");
       const r = parseInt(hex.substring(0, 2), 16);
       const g = parseInt(hex.substring(2, 4), 16);
       const b = parseInt(hex.substring(4, 6), 16);
-      document.documentElement.style.setProperty("--bg-color", `${r} ${g} ${b}`);
+      document.documentElement.style.setProperty(
+        "--bg-color",
+        `${r} ${g} ${b}`,
+      );
     } else {
       document.documentElement.style.removeProperty("--bg-color");
     }
@@ -150,7 +157,7 @@ export default function Canvas() {
       <Dock isAutoMode={theme === "auto"}>
         {currentGame && (
           <>
-            <GameSelector currentGame={currentGame} />
+            <GameSelector currentGame={currentGame} onGameChange={switchGame} />
             <DockDivider />
           </>
         )}

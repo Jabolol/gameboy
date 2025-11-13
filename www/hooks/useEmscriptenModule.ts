@@ -2,67 +2,70 @@ import { useEffect, useState } from "preact/hooks";
 
 interface EmscriptenModule {
   canvas: HTMLCanvasElement | null;
-  arguments: string[];
   locateFile?: (path: string, prefix: string) => string;
+  ccall: (
+    name: string,
+    returnType: string | null,
+    argTypes: string[],
+    args: unknown[],
+  ) => unknown;
 }
 
 type EmscriptenFactory = (
   module?: Partial<EmscriptenModule>,
-) => Promise<unknown>;
+) => Promise<EmscriptenModule>;
 
 interface UseEmscriptenModuleResult {
-  instance: unknown | null;
+  instance: EmscriptenModule | null;
   loading: boolean;
   error: Error | null;
 }
 
 export function useEmscriptenModule(
-  config: EmscriptenModule | null,
+  canvas: HTMLCanvasElement | null,
 ): UseEmscriptenModuleResult {
-  const [instance, setInstance] = useState<unknown | null>(null);
+  const [instance, setInstance] = useState<EmscriptenModule | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!config) return;
-    if (instance) return;
+    if (!canvas || instance) return;
 
     let cancelled = false;
 
-    const loadModule = async () => {
+    (async () => {
       setLoading(true);
       setError(null);
 
       try {
         const module = await import("../static/gameboy.js");
-        const factory = module.default as EmscriptenFactory;
-
         if (cancelled) return;
 
-        const moduleInstance = await factory(config);
+        const moduleInstance = await (module.default as EmscriptenFactory)({
+          canvas,
+          locateFile: (path) => `/${path}`,
+        });
 
-        if (cancelled) return;
-
-        setInstance(moduleInstance);
+        if (!cancelled) {
+          setInstance(moduleInstance);
+        }
       } catch (err) {
-        if (cancelled) return;
-
-        const error = err instanceof Error ? err : new Error(String(err));
-        setError(error);
-        console.error("Failed to load Emscripten module:", error);
+        if (!cancelled) {
+          const error = err instanceof Error ? err : new Error(String(err));
+          setError(error);
+          console.error("Failed to load Emscripten module:", error);
+        }
       } finally {
         if (!cancelled) {
           setLoading(false);
         }
       }
-    };
-
-    loadModule();
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [config, instance]);
+  }, [canvas, instance]);
 
   return { instance, loading, error };
 }
