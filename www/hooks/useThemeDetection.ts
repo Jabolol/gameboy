@@ -3,9 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { SAMPLING_CONFIG } from "../constants.ts";
 import type { SamplingConfig } from "../types/canvas.ts";
 import type { DetectedTheme, Theme } from "../types/theme.ts";
-import {
-  detectDominantColor,
-} from "../utils/colorSampling.ts";
+import { detectDominantColor } from "../utils/colorSampling.ts";
 import { ConsensusTracker } from "../utils/consensus.ts";
 
 export function useThemeDetection(

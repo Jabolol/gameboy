@@ -12,7 +12,8 @@ const DOCK_BASE_CLASSES =
 const DOCK_NORMAL_CLASSES =
   "bg-white/80 dark:bg-black/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 shadow-2xl shadow-black/10";
 
-const DIVIDER_CLASSES = "w-px h-3 sm:h-4 bg-gray-300 dark:bg-gray-700 flex-shrink-0";
+const DIVIDER_CLASSES =
+  "w-px h-3 sm:h-4 bg-gray-300 dark:bg-gray-700 flex-shrink-0";
 
 const LIQUID_GLASS_STYLE: CSSProperties = {
   position: "relative",
@@ -62,7 +63,9 @@ export function Dock({ children, isAutoMode = false }: DockProps) {
     );
   }
 
-  return <div class={`${DOCK_BASE_CLASSES} ${DOCK_NORMAL_CLASSES}`}>{children}</div>;
+  return (
+    <div class={`${DOCK_BASE_CLASSES} ${DOCK_NORMAL_CLASSES}`}>{children}</div>
+  );
 }
 
 export function DockDivider() {

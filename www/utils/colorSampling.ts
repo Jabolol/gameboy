@@ -39,7 +39,7 @@ function quantizeColor(r: number, g: number, b: number, binSize = 32): string {
 }
 
 function rgbToHex(r: number, g: number, b: number): string {
-  return `#${[r, g, b].map(x => x.toString(16).padStart(2, '0')).join('')}`;
+  return `#${[r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("")}`;
 }
 
 export function analyzePixels(
@@ -90,8 +90,7 @@ export function detectDominantColor(
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const isBorder =
-        x < borderThicknessX ||
+      const isBorder = x < borderThicknessX ||
         x >= width - borderThicknessX ||
         y < borderThicknessY ||
         y >= height - borderThicknessY;
