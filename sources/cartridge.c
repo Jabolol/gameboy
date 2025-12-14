@@ -36,7 +36,7 @@ static const char *get_rom_type(CartridgeClass *self)
         : "UNKNOWN";
 }
 
-static bool load(CartridgeClass *self, char *path)
+static bool load(CartridgeClass *self, const char *path)
 {
     strncpy(self->context->filename, path, sizeof(self->context->filename));
     FILE *stream = fopen(path, "r");
@@ -44,7 +44,9 @@ static bool load(CartridgeClass *self, char *path)
         fprintf(stderr, "Failed to open ROM (%s)\n", path);
         return false;
     }
-    printf("Opened: %s\n", path);
+    char opened_msg[256];
+    snprintf(opened_msg, sizeof(opened_msg), "Opened: %s", path);
+    LOG(opened_msg);
     fseek(stream, 0, SEEK_END);
     self->context->rom_size = ftell(stream);
     rewind(stream);
@@ -56,21 +58,39 @@ static bool load(CartridgeClass *self, char *path)
     fread(self->context->rom_data, self->context->rom_size, 1, stream);
 
     self->context->header = (rom_header_t *) (self->context->rom_data + 0x100);
-    self->context->header->title[15] = 0;
+    self->context->header->title[14] = 0;
     self->context->has_battery = self->battery(self);
     self->context->has_rtc = self->rtc(self);
     self->context->needs_save = false;
     fclose(stream);
 
-    printf("Cartridge loaded:\n");
-    printf("\tTitle    : %s\n", self->context->header->title);
-    printf("\tType     : %2.2X (%s)\n", self->context->header->type,
-        self->get_rom_type(self));
-    printf("\tROM Size : %d KB\n", 32 << self->context->header->rom_size);
-    printf("\tRAM Size : %2.2X KB\n", self->context->header->ram_size);
-    printf("\tLIC Code : %2.2X (%s)\n", self->context->header->license_code,
-        self->get_license(self));
-    printf("\tROM Vers : %2.2X\n", self->context->header->version);
+    char cart_msg[512];
+
+    LOG("Cartridge loaded");
+
+    snprintf(
+        cart_msg, sizeof(cart_msg), "Title: %s", self->context->header->title);
+    LOG(cart_msg);
+
+    snprintf(cart_msg, sizeof(cart_msg), "Type: %2.2X (%s)",
+        self->context->header->type, self->get_rom_type(self));
+    LOG(cart_msg);
+
+    snprintf(cart_msg, sizeof(cart_msg), "ROM Size: %d KB",
+        32 << self->context->header->rom_size);
+    LOG(cart_msg);
+
+    snprintf(cart_msg, sizeof(cart_msg), "RAM Size: %2.2X KB",
+        self->context->header->ram_size);
+    LOG(cart_msg);
+
+    snprintf(cart_msg, sizeof(cart_msg), "LIC Code: %2.2X (%s)",
+        self->context->header->license_code, self->get_license(self));
+    LOG(cart_msg);
+
+    snprintf(cart_msg, sizeof(cart_msg), "ROM Vers: %2.2X",
+        self->context->header->version);
+    LOG(cart_msg);
 
     self->setup_banks(self);
 
@@ -79,8 +99,9 @@ static bool load(CartridgeClass *self, char *path)
         x -= self->context->rom_data[i] - 1;
     }
 
-    printf("\tChecksum : %2.2X (%s)\n", self->context->header->checksum,
-        (x & 0xFF) ? "PASSED" : "FAILED");
+    snprintf(cart_msg, sizeof(cart_msg), "Checksum: %2.2X (%s)",
+        self->context->header->checksum, (x & 0xFF) ? "PASSED" : "FAILED");
+    LOG(cart_msg);
 
     if (self->context->has_battery) {
         self->load_battery(self);
@@ -92,6 +113,12 @@ static bool load(CartridgeClass *self, char *path)
 static uint8_t read(CartridgeClass *self, uint16_t address)
 {
     if (address < 0x4000) {
+        if (self->mbc_1(self) && self->context->banking_mode == 1) {
+            uint8_t rom_bank_mask = (self->context->rom_size / 0x4000) - 1;
+            uint8_t bank =
+                (self->context->rom_bank_value & 0xE0) & rom_bank_mask;
+            return self->context->rom_data[(bank * 0x4000) + address];
+        }
         return self->context->rom_data[address];
     }
 
@@ -113,6 +140,10 @@ static uint8_t read(CartridgeClass *self, uint16_t address)
 
         if (self->mbc_3(self) && self->context->rtc_selected) {
             return self->read_rtc(self, self->context->rtc_reg);
+        }
+
+        if (self->mbc_2(self)) {
+            return self->context->ram_bank[(address - 0xA000) & 0x1FF] | 0xF0;
         }
 
         return self->context->ram_bank[address - 0xA000];
@@ -154,7 +185,11 @@ static void write(CartridgeClass *self, uint16_t address, uint8_t value)
             return;
         }
 
-        self->context->ram_bank[address - 0xA000] = value;
+        if (self->mbc_2(self)) {
+            self->context->ram_bank[(address - 0xA000) & 0x1FF] = value & 0x0F;
+        } else {
+            self->context->ram_bank[address - 0xA000] = value;
+        }
         if (self->context->has_battery) {
             self->context->needs_save = true;
         }
@@ -169,23 +204,39 @@ static void write_mbc1(CartridgeClass *self, uint16_t address, uint8_t value)
             break;
         }
         case 0x2000: {
-            if (value == 0) {
-                value = 1;
+            uint8_t lower_bits = value & 0x1F;
+            if (lower_bits == 0) {
+                lower_bits = 1;
             }
-            value &= 0x1F;
-            self->context->rom_bank_value = value;
-            self->context->rom_bank_x = self->context->rom_data
-                + (0x4000 * self->context->rom_bank_value);
+            self->context->rom_bank_value =
+                (self->context->rom_bank_value & 0x60) | lower_bits;
+            uint8_t rom_bank_mask = (self->context->rom_size / 0x4000) - 1;
+            uint8_t masked_bank =
+                self->context->rom_bank_value & rom_bank_mask;
+            self->context->rom_bank_x =
+                self->context->rom_data + (0x4000 * masked_bank);
             break;
         }
         case 0x4000: {
+            uint8_t upper_bits = (value & 0x03) << 5;
+            self->context->rom_bank_value =
+                (self->context->rom_bank_value & 0x1F) | upper_bits;
+            uint8_t rom_bank_mask = (self->context->rom_size / 0x4000) - 1;
+            uint8_t masked_bank =
+                self->context->rom_bank_value & rom_bank_mask;
+            self->context->rom_bank_x =
+                self->context->rom_data + (0x4000 * masked_bank);
             self->context->ram_bank_value = value & 0x03;
             if (self->context->ram_banking) {
                 if (self->context->needs_save) {
                     self->save_battery(self);
                 }
-                self->context->ram_bank =
-                    self->context->ram_banks[self->context->ram_bank_value];
+                if (self->context->ram_banks[self->context->ram_bank_value]
+                    != NULL) {
+                    self->context->ram_bank =
+                        self->context
+                            ->ram_banks[self->context->ram_bank_value];
+                }
             }
             break;
         }
@@ -196,8 +247,12 @@ static void write_mbc1(CartridgeClass *self, uint16_t address, uint8_t value)
                 if (self->context->needs_save) {
                     self->save_battery(self);
                 }
-                self->context->ram_bank =
-                    self->context->ram_banks[self->context->ram_bank_value];
+                if (self->context->ram_banks[self->context->ram_bank_value]
+                    != NULL) {
+                    self->context->ram_bank =
+                        self->context
+                            ->ram_banks[self->context->ram_bank_value];
+                }
             }
             break;
         }
@@ -249,8 +304,9 @@ static void write_mbc3(CartridgeClass *self, uint16_t address, uint8_t value)
             if (value <= 0x03) {
                 self->context->ram_bank_value = value;
                 self->context->rtc_selected = false;
-                self->context->ram_bank =
-                    self->context->ram_banks[self->context->ram_bank_value];
+                if (self->context->ram_banks[value] != NULL) {
+                    self->context->ram_bank = self->context->ram_banks[value];
+                }
             } else if (value >= 0x08 && value <= 0x0C) {
                 self->context->rtc_selected = true;
                 self->context->rtc_reg = value - 0x08;
@@ -338,8 +394,11 @@ static void write_mbc6(CartridgeClass *self, uint16_t address, uint8_t value)
         }
         case 0x4000: {
             self->context->ram_bank_value = value & 0x07;
-            self->context->ram_bank =
-                self->context->ram_banks[self->context->ram_bank_value];
+            if (self->context->ram_banks[self->context->ram_bank_value]
+                != NULL) {
+                self->context->ram_bank =
+                    self->context->ram_banks[self->context->ram_bank_value];
+            }
             break;
         }
     }

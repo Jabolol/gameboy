@@ -24,7 +24,8 @@ static uint8_t read(BusClass *self, uint16_t address)
             return self->parent->ram->wram_read(self->parent->ram, address);
         }
         case ECHO_RANGE: {
-            return 0;
+            return self->parent->ram->wram_read(
+                self->parent->ram, address - 0x2000);
         }
         case OAM_RANGE: {
             if (self->parent->dma->transferring(self->parent->dma)) {
@@ -75,6 +76,8 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
             break;
         }
         case ECHO_RANGE: {
+            self->parent->ram->wram_write(
+                self->parent->ram, address - 0x2000, value);
             break;
         }
         case OAM_RANGE: {

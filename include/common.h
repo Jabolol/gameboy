@@ -90,10 +90,17 @@
     #define TMA              0xFF06
     #define TAC              0xFF07
     #define TIMER_RANGE      0xFF04 ... 0xFF07
-    #define LCD_RANGE        0xFF40 ... 0xFF4B
+    #define LCD_RANGE        0xFF40 ... 0xFF6B
     #define SOUND_RANGE      0xFF10 ... 0xFF3F
     #define INTERRUPT_FLAG   0xFF0F
     #define TRANSFER_REG     0xFF46
+    #define LCD_OPRI         0xFF6C
+    #define LCD_UNDOC_FF72   0xFF72
+    #define LCD_UNDOC_FF73   0xFF73
+    #define LCD_UNDOC_FF74   0xFF74
+    #define LCD_UNDOC_FF75   0xFF75
+    #define LCD_PCM12        0xFF76
+    #define LCD_PCM34        0xFF77
     #define INST_BUFF_LEN    16
     #define START_LOCATION   0x8000
     #define LCD_Y_COORD      0xFF44
@@ -101,6 +108,18 @@
     #define LCD_BG_PAL       0xFF47
     #define LCD_S1_PAL       0xFF48
     #define LCD_S2_PAL       0xFF49
+    #define KEY1             0xFF4D
+    #define LCD_VBK          0xFF4F
+    #define LCD_HDMA1        0xFF51
+    #define LCD_HDMA2        0xFF52
+    #define LCD_HDMA3        0xFF53
+    #define LCD_HDMA4        0xFF54
+    #define LCD_HDMA5        0xFF55
+    #define LCD_BCPS         0xFF68
+    #define LCD_BCPD         0xFF69
+    #define LCD_OCPS         0xFF6A
+    #define LCD_OCPD         0xFF6B
+    #define LCD_SVBK         0xFF70
     #define HBLANK_OFF       3
     #define VBLANK_OFF       4
     #define OAM_OFF          5
@@ -136,18 +155,25 @@
     #define AUDIO_SAMPLES     1024
     #define AUDIO_MAX_SAMPLES 4096
 
+typedef enum { HW_DMG, HW_CGB } hardware_mode_t;
+
 typedef struct {
     bool paused;
     bool running;
     bool die;
     uint64_t ticks;
     uint32_t prev_frame;
+    hardware_mode_t hw_mode;
+    bool double_speed;
+    bool speed_switch_armed;
+    uint16_t stop_cycles_remaining;
 } emulator_context_t;
 
 typedef struct {
     uint8_t entry[4];
     uint8_t logo[0x30];
-    char title[16];
+    char title[15];
+    uint8_t cgb_flag;
     uint16_t new_license_code;
     uint8_t sgb_flag;
     uint8_t type;
@@ -169,7 +195,7 @@ typedef struct {
     bool ram_banking;
     uint8_t *rom_bank_x;
     uint8_t banking_mode;
-    uint8_t rom_bank_value;
+    uint16_t rom_bank_value;
     uint8_t ram_bank_value;
     uint8_t *ram_bank;
     uint8_t *ram_banks[0x10];
@@ -340,8 +366,9 @@ typedef struct cpu_aux CPUClass;
 typedef void (*proc_fn)(CPUClass *);
 
 typedef struct {
-    uint8_t wram[0x2000];
+    uint8_t wram[0x8000];
     uint8_t hram[0x80];
+    uint8_t wram_bank;
 } ram_context_t;
 
 typedef enum {
@@ -363,12 +390,7 @@ typedef struct {
     uint8_t y;
     uint8_t x;
     uint8_t tile;
-    uint8_t f_cgb_pn : 3;
-    uint8_t f_cgb_vram_bank : 1;
-    uint8_t f_pn : 1;
-    uint8_t f_x_flip : 1;
-    uint8_t f_y_flip : 1;
-    uint8_t f_bgp : 1;
+    uint8_t attributes;
 } oam_entry_t;
 
 typedef struct oam_line_entry {
@@ -403,7 +425,7 @@ typedef struct {
     uint8_t line_x;
     uint8_t pushed_x;
     uint8_t fetch_x;
-    uint8_t bg_fetch_data[3];
+    uint8_t bg_fetch_data[4];
     uint8_t fetch_entry_data[6];
     uint8_t map_y;
     uint8_t map_x;
@@ -413,7 +435,8 @@ typedef struct {
 
 typedef struct {
     oam_entry_t oam_ram[OAM_ENTRIES];
-    uint8_t vram[0x2000];
+    uint8_t vram[0x4000];
+    uint8_t vram_bank;
     fifo_context_t *pixel_context;
     uint8_t line_sprite_count;
     oam_line_entry_t *line_sprites;
@@ -424,6 +447,8 @@ typedef struct {
     uint32_t current_frame;
     uint32_t line_ticks;
     uint32_t *video_buffer;
+    bool window_triggered;
+    bool window_rendered_this_line;
 } ppu_context_t;
 
 typedef struct {
@@ -432,6 +457,19 @@ typedef struct {
     uint8_t value;
     uint8_t start_delay;
 } dma_context_t;
+
+typedef struct {
+    bool active;
+    bool hblank_mode;
+    uint16_t source;
+    uint16_t dest;
+    uint16_t remaining;
+    uint8_t hdma1;
+    uint8_t hdma2;
+    uint8_t hdma3;
+    uint8_t hdma4;
+    uint8_t hdma5;
+} hdma_context_t;
 
 typedef struct {
     uint8_t control;
@@ -448,6 +486,18 @@ typedef struct {
     uint32_t bg_colors[4];
     uint32_t sprite1_colors[4];
     uint32_t sprite2_colors[4];
+    uint8_t bg_palette_index;
+    uint8_t bg_palette_data[64];
+    uint8_t sprite_palette_index;
+    uint8_t sprite_palette_data[64];
+    uint32_t bg_colors_cgb[8][4];
+    uint32_t sprite_colors_cgb[8][4];
+    hdma_context_t hdma;
+    uint8_t opri;
+    uint8_t undoc_ff72;
+    uint8_t undoc_ff73;
+    uint8_t undoc_ff74;
+    uint8_t undoc_ff75;
 } lcd_context_t;
 
 typedef enum {

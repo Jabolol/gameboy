@@ -36,13 +36,26 @@ set(WASM_FLAGS
     -O3
     -s WASM=1
     -s USE_SDL=2
+    -s EXPORT_ES6=1
+    -s MODULARIZE=1
+    -s MALLOC=emmalloc
+    -s MAX_WEBGL_VERSION=2
+    -s GL_UNSAFE_OPTS=1
+    -s LZ4=1
+    -s AUDIO_WORKLET=1
+    -s WASM_WORKERS=1
     -s ENVIRONMENT=worker
     -s ELIMINATE_DUPLICATE_FUNCTIONS=1
     -o www/static/gameboy.js
     -pthread
     -s PTHREAD_POOL_SIZE=1
+    -s PTHREAD_POOL_DELAY_LOAD=1
     -s ASYNCIFY
     -s ALLOW_MEMORY_GROWTH=1
+    -s SHARED_MEMORY=1
+    -s WASM_BIGINT=1
+    -s EXPORTED_FUNCTIONS=["_gameboy_create","_gameboy_start","_gameboy_destroy"]
+    -s EXPORTED_RUNTIME_METHODS=["ccall","cwrap"]
     --closure 1
     -flto
 )

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import { ControlButton } from "../components/ControlButton.tsx";
 import { Dock, DockDivider } from "../components/Dock.tsx";
+import { GameSelector } from "../components/GameSelector.tsx";
 import { GitHubIcon } from "../components/icons/GitHubIcon.tsx";
 import { ThemeButton } from "../components/ThemeButton.tsx";
 import { TilesIcon } from "../components/icons/TilesIcon.tsx";
@@ -26,6 +27,8 @@ import {
   createTypedStorage,
   numberStorage,
 } from "../utils/storage.ts";
+import { getCurrentGame } from "../utils/gameLoader.ts";
+import { useGameboyInitializer } from "../hooks/useGameboyInitializer.ts";
 
 const scaleStorage = createTypedStorage<Scale>(
   (v) => Number(v) as Scale,
@@ -40,6 +43,8 @@ const themeStorage = createTypedStorage<Theme>(
 );
 
 export default function Canvas() {
+  const { loadedGame, switchGame } = useGameboyInitializer();
+
   const [scale, setScale] = usePersistedState(
     STORAGE_KEYS.scale,
     scaleStorage,
@@ -77,22 +82,56 @@ export default function Canvas() {
     self.audioVolumeControl?.setVolume(volume);
   }, [volume]);
 
+  const isColorDark = (hexColor: string): boolean => {
+    if (hexColor === "light") return false;
+    if (hexColor === "dark") return true;
+
+    const hex = hexColor.replace("#", "");
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+    return brightness < 128;
+  };
+
   useEffect(() => {
     const effectiveTheme = theme === "auto" ? detectedTheme : theme;
-    document.documentElement.classList.toggle(
-      "dark",
-      effectiveTheme === "dark",
-    );
+    const isDark =
+      typeof effectiveTheme === "string" && effectiveTheme.startsWith("#")
+        ? isColorDark(effectiveTheme)
+        : effectiveTheme === "dark";
+
+    document.documentElement.classList.toggle("dark", isDark);
+
+    if (
+      theme === "auto" && typeof detectedTheme === "string" &&
+      detectedTheme.startsWith("#")
+    ) {
+      const hex = detectedTheme.replace("#", "");
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      document.documentElement.style.setProperty(
+        "--bg-color",
+        `${r} ${g} ${b}`,
+      );
+    } else {
+      document.documentElement.style.removeProperty("--bg-color");
+    }
   }, [theme, detectedTheme]);
 
   const visibleWidth = showTiles
     ? CANVAS_DIMENSIONS.canvasWidth
     : CANVAS_DIMENSIONS.gameScreenWidth;
 
+  const currentGame = loadedGame ??
+    (typeof self !== "undefined" ? getCurrentGame() : null);
+
   return (
-    <div class="flex flex-col items-center gap-6">
+    <div class="flex flex-col items-center gap-3 sm:gap-6 px-2 sm:px-0">
       <div
-        class="overflow-hidden rounded-sm"
+        class="overflow-hidden rounded-sm max-w-full relative"
         style={{
           width: `${visibleWidth * scale}px`,
           height: `${CANVAS_DIMENSIONS.canvasHeight * scale}px`,
@@ -115,9 +154,16 @@ export default function Canvas() {
         />
       </div>
 
-      <Dock>
+      <Dock isAutoMode={theme === "auto"}>
+        {currentGame && (
+          <>
+            <GameSelector currentGame={currentGame} onGameChange={switchGame} />
+            <DockDivider />
+          </>
+        )}
+
         <ControlButton onClick={cycleScale} label="Change scale" variant="text">
-          {scale}×
+          <span class="whitespace-nowrap">{scale}×</span>
         </ControlButton>
 
         <DockDivider />
@@ -138,7 +184,7 @@ export default function Canvas() {
           onClick={() => setShowTiles(!showTiles)}
           label={showTiles ? "Hide tiles" : "Show tiles"}
         >
-          <TilesIcon class="w-5 h-5" />
+          <TilesIcon class="w-4 h-4 sm:w-5 sm:h-5" />
         </ControlButton>
 
         <DockDivider />
@@ -147,10 +193,10 @@ export default function Canvas() {
           href="https://github.com/Jabolol/gameboy"
           target="_blank"
           rel="noopener noreferrer"
-          class="p-1.5 text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 transition-colors outline-none focus:outline-none"
+          class="p-1 sm:p-1.5 text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-400 transition-colors outline-none focus:outline-none shrink-0"
           aria-label="View on GitHub"
         >
-          <GitHubIcon class="w-5 h-5" />
+          <GitHubIcon class="w-4 h-4 sm:w-5 sm:h-5" />
         </a>
       </Dock>
     </div>

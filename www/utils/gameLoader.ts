@@ -1,25 +1,28 @@
-interface EmscriptenModule {
-  canvas: HTMLCanvasElement | null;
-  arguments: string[];
-}
-
-declare global {
-  var Module: EmscriptenModule | undefined;
-}
-
 const GAME_LIBRARY = [
   "asteroids.gb",
   "batman.gb",
   "contra.gb",
   "donkey-kong.gb",
+  "dr-mario-dx.gb",
   "dr-mario.gb",
-  "kirby-dream.gb",
+  "galaga-dx.gb",
+  "kirby-dream-2-dx.gb",
   "kirby-dream-2.gb",
+  "kirby-dream-dx.gb",
+  "kirby-dream.gb",
+  "megaman-v-dx.gb",
   "megaman-willy.gb",
+  "pokemon-crystal.gbc",
+  "pokemon-gold.gbc",
+  "pokemon-silver.gbc",
   "pokemon-yellow.gb",
+  "super-mario-deluxe.gbc",
   "super-mario.gb",
+  "tetris-dx.gb",
   "tetris.gb",
   "trip-world.gb",
+  "wario-land-3.gbc",
+  "zelda-dx.gbc",
   "zelda.gb",
 ] as const;
 
@@ -30,11 +33,26 @@ function isValidGame(game: string): game is GameName {
 }
 
 function normalizeGameName(game: string): string {
-  return game.endsWith(".gb") ? game : `${game}.gb`;
+  const validExtensions = [".gb", ".gbc"];
+
+  if (validExtensions.some((ext) => game.endsWith(ext))) {
+    return game;
+  }
+
+  const candidates = [
+    `${game}.gbc`,
+    `${game}.gb`,
+  ];
+
+  for (const candidate of candidates) {
+    if (isValidGame(candidate)) return candidate;
+  }
+
+  return game;
 }
 
 function getGameFromUrl(): GameName | null {
-  if (typeof self === "undefined") return null;
+  if (typeof self === "undefined" || !self.location) return null;
 
   const urlParams = new URLSearchParams(self.location.search);
   const requestedGame = urlParams.get("game");
@@ -49,18 +67,21 @@ function getRandomGame(): GameName {
   return GAME_LIBRARY[Math.floor(Math.random() * GAME_LIBRARY.length)];
 }
 
-function getGameToLoad(): GameName {
+export function getGameToLoad(): GameName {
   return getGameFromUrl() ?? getRandomGame();
 }
 
-export function initializeGameboyModule(): void {
-  if (typeof self === "undefined") return;
-
-  const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
-  const game = getGameToLoad();
-
-  self.Module = {
-    canvas,
-    arguments: [`ROMs/${game}`],
-  };
+export function getCurrentGame(): GameName | null {
+  return getGameFromUrl();
 }
+
+export function formatGameName(game: GameName): string {
+  return game
+    .replace(/\.gb[c]?$/, "")
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+export { GAME_LIBRARY };
+export type { GameName };

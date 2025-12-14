@@ -1,4 +1,5 @@
 import { signal } from "@preact/signals";
+import type { GameName } from "./gameLoader.ts";
 
 type ScriptStatus = "idle" | "loading" | "ready" | "error";
 
@@ -90,6 +91,7 @@ export const scriptManager = new ScriptManager();
 export const gameboyState = signal<{
   initialized: boolean;
   scriptLoaded: boolean;
+  loadedGame?: GameName;
   error?: Error;
 }>({
   initialized: false,

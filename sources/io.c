@@ -28,7 +28,53 @@ static uint8_t read(IOClass *self, uint16_t address)
             return self->parent->sound->read(self->parent->sound, address);
         }
         case LCD_RANGE: {
+            if (address == KEY1) {
+                if (self->parent->context->hw_mode == HW_CGB) {
+                    return (self->parent->context->double_speed ? 0x80 : 0x00)
+                        | (self->parent->context->speed_switch_armed ? 0x01
+                                                                     : 0x00)
+                        | 0x7E;
+                }
+                return 0xFF;
+            }
             return self->parent->lcd->read(self->parent->lcd, address);
+        }
+        case LCD_OPRI: {
+            if (self->parent->context->hw_mode == HW_CGB) {
+                return self->parent->lcd->context->opri;
+            }
+            return 0xFF;
+        }
+        case LCD_SVBK: {
+            return self->parent->ram->context->wram_bank | 0xF8;
+        }
+        case LCD_UNDOC_FF72: {
+            if (self->parent->context->hw_mode == HW_CGB) {
+                return self->parent->lcd->context->undoc_ff72;
+            }
+            return 0xFF;
+        }
+        case LCD_UNDOC_FF73: {
+            if (self->parent->context->hw_mode == HW_CGB) {
+                return self->parent->lcd->context->undoc_ff73;
+            }
+            return 0xFF;
+        }
+        case LCD_UNDOC_FF74: {
+            if (self->parent->context->hw_mode == HW_CGB) {
+                return self->parent->lcd->context->undoc_ff74;
+            }
+            return 0xFF;
+        }
+        case LCD_UNDOC_FF75: {
+            if (self->parent->context->hw_mode == HW_CGB) {
+                return self->parent->lcd->context->undoc_ff75 | 0x8F;
+            }
+            return 0xFF;
+        }
+        case LCD_PCM12:
+        case LCD_PCM34: {
+            return 0x00;
         }
         default: {
             NOT_IMPLEMENTED();
@@ -65,7 +111,58 @@ static void write(IOClass *self, uint16_t address, uint8_t value)
             break;
         }
         case LCD_RANGE: {
+            if (address == KEY1) {
+                if (self->parent->context->hw_mode == HW_CGB) {
+                    self->parent->context->speed_switch_armed =
+                        (value & 0x01) != 0;
+                }
+                break;
+            }
             self->parent->lcd->write(self->parent->lcd, address, value);
+            break;
+        }
+        case LCD_OPRI: {
+            if (self->parent->context->hw_mode == HW_CGB) {
+                self->parent->lcd->context->opri =
+                    (self->parent->lcd->context->opri & 0xFE) | (value & 0x01);
+            }
+            break;
+        }
+        case LCD_SVBK: {
+            if (self->parent->context->hw_mode == HW_CGB) {
+                self->parent->ram->context->wram_bank = value & 0x07;
+                if (self->parent->ram->context->wram_bank == 0) {
+                    self->parent->ram->context->wram_bank = 1;
+                }
+            }
+            break;
+        }
+        case LCD_UNDOC_FF72: {
+            if (self->parent->context->hw_mode == HW_CGB) {
+                self->parent->lcd->context->undoc_ff72 = value;
+            }
+            break;
+        }
+        case LCD_UNDOC_FF73: {
+            if (self->parent->context->hw_mode == HW_CGB) {
+                self->parent->lcd->context->undoc_ff73 = value;
+            }
+            break;
+        }
+        case LCD_UNDOC_FF74: {
+            if (self->parent->context->hw_mode == HW_CGB) {
+                self->parent->lcd->context->undoc_ff74 = value;
+            }
+            break;
+        }
+        case LCD_UNDOC_FF75: {
+            if (self->parent->context->hw_mode == HW_CGB) {
+                self->parent->lcd->context->undoc_ff75 = value & 0x70;
+            }
+            break;
+        }
+        case LCD_PCM12:
+        case LCD_PCM34: {
             break;
         }
         default: {
