@@ -155,11 +155,11 @@ static void delay(uint32_t ms)
 static void on_key(UIClass *self, bool down, SDL_Keycode code)
 {
     switch (code) {
-        case SDLK_a: {
+        case SDLK_z: {
             self->parent->joypad->context->state.a = down;
             break;
         }
-        case SDLK_b: {
+        case SDLK_x: {
             self->parent->joypad->context->state.b = down;
             break;
         }
