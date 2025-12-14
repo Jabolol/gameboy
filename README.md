@@ -39,6 +39,7 @@ cmake -B build -G Ninja && cmake --build build
 - [x] Bus (Memory Management)
 - [x] CPU
 - [x] PPU (Graphics)
+- [ ] Game Boy Color support (partial / work in progress)
 - [x] Input (Joypad)
 - [x] Timer
 - [x] Interrupts (V-Blank, LCD, Timer, Serial, Joypad)
@@ -50,11 +51,13 @@ cmake -B build -G Ninja && cmake --build build
 ## controls
 
 - `Arrow Keys` - D-Pad
-- `A` - A
-- `B` - B
+- `Z` - A
+- `X` - B
 - `U` - Volume Up
 - `D` - Volume Down
+- `Tab` - Select
 - `Enter` - Start
+- `Q` - Quit
 
 ## web version
 
@@ -63,31 +66,32 @@ In order to run the web version, you need to have `deno` installed.
 
 ### game selection
 
-The web version includes 13 preloaded games. Append `?game=${game}` to the URL
+The web version includes 26 preloaded games. Append `?game=${game}` to the URL
 to load a specific game. If no game is specified, a random game will be loaded.
 
-The full list of games can be found in [`www/utils/gameLoader.ts`](./www/utils/gameLoader.ts).
+The full list of games can be found in
+[`www/utils/gameLoader.ts`](./www/utils/gameLoader.ts).
 
 ### ui controls
 
 The web interface includes a control dock with the following features:
 
-- **Canvas Scale** - Cycle between 1x, 2x, and 3x zoom levels (defaults to 1x
-  on mobile, 3x on desktop)
+- **Canvas Scale** - Cycle between 1x, 2x, and 3x zoom levels (defaults to 1x on
+  mobile, 3x on desktop)
 - **Volume Control** - Adjust audio volume from 0 to 100% in 10% increments
 - **Theme System** - Three available themes: `light`, `dark`, and `auto`
   (automatically detects the game's color palette by sampling canvas pixels and
   switches between light/dark themes accordingly in real-time)
 - **Tiles Viewer** - Toggle visibility of internal gameboy tiles used to render
   the current frame
-- **Persistent State** - All settings (scale, volume, theme, tiles) are saved
-  to localStorage and restored on page load
+- **Persistent State** - All settings (scale, volume, theme, tiles) are saved to
+  localStorage and restored on page load
 
 ### running locally
 
 > [!TIP]
-> To enable google analytics, set the `GA4_MEASUREMENT_ID` environment variable to
-> your GA4 measurement ID.
+> To enable google analytics, set the `GA4_MEASUREMENT_ID` environment variable
+> to your GA4 measurement ID.
 
 The web version will bundle the ROMs available at `ROMs` directory and serve
 them at `http://localhost:5173`.
@@ -102,15 +106,19 @@ deno task --cwd www dev
 
 > [Legend of Zelda, The - Link's Awakening](https://gameboy.deno.dev/?game=zelda)
 
-![](./assets/zelda.png)
+![](./assets/zelda.png) ![](./assets/zelda-dx.png)
 
 > [Pokemon - Yellow Version - Special Pikachu Edition](https://gameboy.deno.dev/?game=pokemon-yellow)
 
 ![](./assets/pokemon-yellow.png)
 
+> [Pokemon - Crystal Version](https://gameboy.deno.dev/?game=pokemon-crystal)
+
+![](./assets/pokemon-crystal.png)
+
 > [Dr. Mario](https://gameboy.deno.dev/?game=dr-mario)
 
-![](./assets/dr-mario.png)
+![](./assets/dr-mario.png) ![](./assets/dr-mario-dx.png)
 
 > [Mega Man - Dr. Wily's Revenge](https://gameboy.deno.dev/?game=megaman-willy)
 
@@ -122,15 +130,27 @@ deno task --cwd www dev
 
 > [Kirby - Dream Land](https://gameboy.deno.dev/?game=kirby-dream)
 
-![](./assets/kirby.png)
+![](./assets/kirby.png) ![](./assets/kirby-dx.png)
 
 > [Kirby - Dream Land 2](https://gameboy.deno.dev/?game=kirby-dream-2)
 
-![](./assets/kirby-2.png)
+![](./assets/kirby-2.png) ![](./assets/kirby-2-dx.png)
 
 > [Tetris](https://gameboy.deno.dev/?game=tetris)
 
-![](./assets/tetris.png)
+![](./assets/tetris.png) ![](./assets/tetris-dx.png)
+
+> [Super Mario Land](https://gameboy.deno.dev/?game=super-mario)
+
+![](./assets/super-mario.png)
+
+> [Super Mario Bros. Deluxe](https://gameboy.deno.dev/?game=super-mario-deluxe)
+
+![](./assets/super-mario-dx.png)
+
+> [Galaga](https://gameboy.deno.dev/?game=galaga)
+
+![](./assets/galaga.png) ![](./assets/galaga-dx.png)
 
 ## resources
 
