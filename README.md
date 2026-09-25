@@ -46,7 +46,7 @@ cmake -B build -G Ninja && cmake --build build
 - [x] MBC1 - MBC7 (Memory Bank Controllers 1-7)
 - [x] Save States (.sav files)
 - [x] Sound (Square Wave, Wave, Noise)
-- [x] Web version at [gameboy.deno.dev](https://gameboy.deno.dev/)
+- [x] Web version at [gameboy.monad.deno.net](https://gameboy.monad.deno.net/)
 
 ## controls
 
@@ -104,51 +104,51 @@ deno task --cwd www dev
 
 ## screenshots
 
-> [Legend of Zelda, The - Link's Awakening](https://gameboy.deno.dev/?game=zelda)
+> [Legend of Zelda, The - Link's Awakening](https://gameboy.monad.deno.net/?game=zelda)
 
 ![](./assets/zelda.png) ![](./assets/zelda-dx.png)
 
-> [Pokemon - Yellow Version - Special Pikachu Edition](https://gameboy.deno.dev/?game=pokemon-yellow)
+> [Pokemon - Yellow Version - Special Pikachu Edition](https://gameboy.monad.deno.net/?game=pokemon-yellow)
 
 ![](./assets/pokemon-yellow.png)
 
-> [Pokemon - Crystal Version](https://gameboy.deno.dev/?game=pokemon-crystal)
+> [Pokemon - Crystal Version](https://gameboy.monad.deno.net/?game=pokemon-crystal)
 
 ![](./assets/pokemon-crystal.png)
 
-> [Dr. Mario](https://gameboy.deno.dev/?game=dr-mario)
+> [Dr. Mario](https://gameboy.monad.deno.net/?game=dr-mario)
 
 ![](./assets/dr-mario.png) ![](./assets/dr-mario-dx.png)
 
-> [Mega Man - Dr. Wily's Revenge](https://gameboy.deno.dev/?game=megaman-willy)
+> [Mega Man - Dr. Wily's Revenge](https://gameboy.monad.deno.net/?game=megaman-willy)
 
 ![](./assets/megaman.png)
 
-> [Contra - The Alien Wars](https://gameboy.deno.dev/?game=contra)
+> [Contra - The Alien Wars](https://gameboy.monad.deno.net/?game=contra)
 
 ![](./assets/contra.png)
 
-> [Kirby - Dream Land](https://gameboy.deno.dev/?game=kirby-dream)
+> [Kirby - Dream Land](https://gameboy.monad.deno.net/?game=kirby-dream)
 
 ![](./assets/kirby.png) ![](./assets/kirby-dx.png)
 
-> [Kirby - Dream Land 2](https://gameboy.deno.dev/?game=kirby-dream-2)
+> [Kirby - Dream Land 2](https://gameboy.monad.deno.net/?game=kirby-dream-2)
 
 ![](./assets/kirby-2.png) ![](./assets/kirby-2-dx.png)
 
-> [Tetris](https://gameboy.deno.dev/?game=tetris)
+> [Tetris](https://gameboy.monad.deno.net/?game=tetris)
 
 ![](./assets/tetris.png) ![](./assets/tetris-dx.png)
 
-> [Super Mario Land](https://gameboy.deno.dev/?game=super-mario)
+> [Super Mario Land](https://gameboy.monad.deno.net/?game=super-mario)
 
 ![](./assets/super-mario.png)
 
-> [Super Mario Bros. Deluxe](https://gameboy.deno.dev/?game=super-mario-deluxe)
+> [Super Mario Bros. Deluxe](https://gameboy.monad.deno.net/?game=super-mario-deluxe)
 
 ![](./assets/super-mario-dx.png)
 
-> [Galaga](https://gameboy.deno.dev/?game=galaga)
+> [Galaga](https://gameboy.monad.deno.net/?game=galaga)
 
 ![](./assets/galaga.png) ![](./assets/galaga-dx.png)
 

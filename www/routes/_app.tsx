@@ -15,7 +15,7 @@ export default function App({ Component, url }: PageProps) {
           content="An accurate gameboy emulator written in C from scratch with a Deno web interface"
         />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://gameboy.deno.dev/" />
+        <meta property="og:url" content="https://gameboy.monad.deno.net/" />
         <meta property="og:title" content="Gameboy Emulator" />
         <meta
           property="og:description"
@@ -29,7 +29,7 @@ export default function App({ Component, url }: PageProps) {
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="721" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content="https://gameboy.deno.dev/" />
+        <meta name="twitter:url" content="https://gameboy.monad.deno.net/" />
         <meta name="twitter:title" content="Gameboy Emulator" />
         <meta
           name="twitter:description"

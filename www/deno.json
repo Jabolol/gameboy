@@ -10,9 +10,13 @@
   "lint": {
     "rules": {
       "tags": ["fresh", "recommended"]
-    }
+    },
+    "exclude": ["static/gameboy.*"]
   },
-  "exclude": ["**/_fresh/*", "static/gameboy.*"],
+  "fmt": {
+    "exclude": ["static/gameboy.*"]
+  },
+  "exclude": ["**/_fresh/*"],
   "imports": {
     "@fresh/plugin-vite": "jsr:@fresh/plugin-vite@^1.0.5",
     "@kitsonk/ga4": "jsr:@kitsonk/ga4@^0.1.0",
@@ -48,9 +52,18 @@
   },
   "nodeModulesDir": "auto",
   "deploy": {
-    "project": "945ab8ab-d18c-4e2d-8801-79f6ba868f24",
-    "exclude": ["**/node_modules"],
-    "include": [],
-    "entrypoint": "_fresh/server.js"
+    "org": "monad",
+    "app": "gameboy",
+    "include": [
+      ".",
+      "static/gameboy.js",
+      "static/gameboy.wasm",
+      "static/gameboy.data"
+    ],
+    "framework": "fresh",
+    "install": "deno install",
+    "build": "deno task build"
   }
 }
+
+
