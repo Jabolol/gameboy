@@ -13,6 +13,7 @@
 #include "pipeline.h"
 #include "ppu.h"
 #include "ram.h"
+#include "snapshot.h"
 #include "sound.h"
 #include "stack.h"
 #include "timer.h"
@@ -42,9 +43,15 @@ typedef struct gameboy_aux {
     PipelineClass *pipeline;
     JoypadClass *joypad;
     SoundClass *sound;
+    SnapshotClass *snapshot;
     emulator_context_t *context;
     /* Methods */
     int32_t (*run)(GameboyClass *, int32_t, char **);
+    bool (*boot)(GameboyClass *, const char *, const char *);
+    void (*request)(GameboyClass *, request_t);
+    void (*configure)(GameboyClass *, setting_t, uint32_t);
+    void (*process_requests)(GameboyClass *);
+    void (*serialize)(GameboyClass *, SnapshotClass *);
     void (*cycles)(GameboyClass *, int32_t);
     void *(*cpu_run)(void *);
     void (*loop)(void *);

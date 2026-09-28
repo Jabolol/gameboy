@@ -6,6 +6,7 @@
 
 typedef struct gameboy_aux GameboyClass;
 typedef struct dma_aux DMAClass;
+typedef struct snapshot_aux SnapshotClass;
 
 typedef struct dma_aux {
     /* Properties */
@@ -16,6 +17,7 @@ typedef struct dma_aux {
     void (*start)(DMAClass *, uint8_t);
     void (*tick)(DMAClass *);
     bool (*transferring)(DMAClass *);
+    void (*serialize)(DMAClass *, SnapshotClass *);
 } DMAClass;
 
 extern const class_t *DMA;

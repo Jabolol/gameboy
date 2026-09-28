@@ -47,6 +47,11 @@ static void hram_write(RAMClass *self, uint16_t address, uint8_t value)
     self->context->hram[address - 0xFF80] = value;
 }
 
+static void serialize(RAMClass *self, SnapshotClass *snapshot)
+{
+    snapshot->field(snapshot, self->context, sizeof(*self->context));
+}
+
 const RAMClass init_ram = {
     {
         ._size = sizeof(RAMClass),
@@ -58,6 +63,7 @@ const RAMClass init_ram = {
     .wram_write = wram_write,
     .hram_read = hram_read,
     .hram_write = hram_write,
+    .serialize = serialize,
 };
 
 const class_t *RAM = (const class_t *) &init_ram;

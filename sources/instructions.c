@@ -10,9 +10,9 @@ static char *lookup(InstructionsClass *self, instruction_type_t instruction)
     return self->lookup_table[instruction];
 }
 
-static void proc_none(CPUClass UNUSED *cpu)
+static void proc_none(CPUClass *cpu)
 {
-    HANDLE_ERROR("invalid instruction");
+    cpu->lock(cpu);
 }
 
 static void proc_nop(CPUClass UNUSED *cpu)
@@ -23,6 +23,7 @@ static void proc_nop(CPUClass UNUSED *cpu)
 static void proc_di(CPUClass *cpu)
 {
     cpu->context->int_master_enabled = false;
+    cpu->context->enabling_ime = false;
 }
 
 static void proc_ei(CPUClass *cpu)
@@ -32,49 +33,45 @@ static void proc_ei(CPUClass *cpu)
 
 static void proc_ld(CPUClass *cpu)
 {
+    instruction_t *inst = cpu->context->inst;
+
     if (cpu->context->dest_is_mem) {
-        if (cpu->is_16bit(cpu->context->inst->register_2)) {
-            cpu->parent->cycles(cpu->parent, 1);
-            cpu->parent->bus->write16(cpu->parent->bus, cpu->context->mem_dest,
-                cpu->context->fetched_data);
+        if (cpu->is_16bit(inst->register_2)) {
+            cpu->write_cycle(cpu, cpu->context->mem_dest,
+                cpu->context->fetched_data & 0xFF);
+            cpu->write_cycle(cpu, cpu->context->mem_dest + 1,
+                cpu->context->fetched_data >> 8);
         } else {
-            cpu->parent->bus->write(cpu->parent->bus, cpu->context->mem_dest,
-                cpu->context->fetched_data);
+            cpu->write_cycle(
+                cpu, cpu->context->mem_dest, cpu->context->fetched_data);
         }
+        return;
+    }
+    if (inst->mode == AM_HL_SPR) {
+        uint16_t sp = cpu->context->registers.sp;
+        uint8_t offset = cpu->context->fetched_data & 0xFF;
+
+        cpu->set_flags(cpu, 0, 0, (sp & 0xF) + (offset & 0xF) > 0xF,
+            (sp & 0xFF) + offset > 0xFF);
+        cpu->set_register(cpu, RT_HL, sp + (int8_t) offset);
         cpu->parent->cycles(cpu->parent, 1);
         return;
     }
-    if (cpu->context->inst->mode == AM_HL_SPR) {
-        uint8_t hflag =
-            (cpu->read_register(cpu, cpu->context->inst->register_2) & 0xF)
-                + (cpu->context->fetched_data & 0xF)
-            >= 0x10;
-        uint8_t cflag =
-            (cpu->read_register(cpu, cpu->context->inst->register_2) & 0xFF)
-                + (cpu->context->fetched_data & 0xFF)
-            >= 0x100;
-        uint16_t address =
-            cpu->read_register(cpu, cpu->context->inst->register_2)
-            + (char) cpu->context->fetched_data;
-        cpu->set_register(cpu, cpu->context->inst->register_1, address);
-        cpu->set_flags(cpu, 0, 0, hflag, cflag);
-        return;
+    if (inst->register_1 == RT_SP && inst->register_2 == RT_HL) {
+        cpu->parent->cycles(cpu->parent, 1);
     }
-    cpu->set_register(
-        cpu, cpu->context->inst->register_1, cpu->context->fetched_data);
+    cpu->set_register(cpu, inst->register_1, cpu->context->fetched_data);
 }
 
 static void proc_ldh(CPUClass *cpu)
 {
     if (cpu->context->inst->register_1 == RT_A) {
-        cpu->set_register(cpu, cpu->context->inst->register_1,
-            cpu->parent->bus->read(
-                cpu->parent->bus, 0xFF00 | cpu->context->fetched_data));
+        cpu->context->registers.a =
+            cpu->read_cycle(cpu, 0xFF00 | cpu->context->fetched_data);
     } else {
-        cpu->parent->bus->write(cpu->parent->bus, cpu->context->mem_dest,
-            cpu->context->registers.a);
+        cpu->write_cycle(
+            cpu, cpu->context->mem_dest, cpu->context->registers.a);
     }
-    cpu->parent->cycles(cpu->parent, 1);
 }
 
 static void proc_rlca(CPUClass *cpu)
@@ -82,8 +79,7 @@ static void proc_rlca(CPUClass *cpu)
     uint8_t u = cpu->context->registers.a;
     bool c = (u >> 7) & 1;
 
-    u = (u << 1) | c;
-    cpu->context->registers.a = u;
+    cpu->context->registers.a = (u << 1) | c;
     cpu->set_flags(cpu, 0, 0, 0, c);
 }
 
@@ -91,8 +87,7 @@ static void proc_rrca(CPUClass *cpu)
 {
     uint8_t b = cpu->context->registers.a & 1;
 
-    cpu->context->registers.a >>= 1;
-    cpu->context->registers.a |= (b << 7);
+    cpu->context->registers.a = (cpu->context->registers.a >> 1) | (b << 7);
     cpu->set_flags(cpu, 0, 0, 0, b);
 }
 
@@ -106,15 +101,31 @@ static void proc_rla(CPUClass *cpu)
     cpu->set_flags(cpu, 0, 0, 0, c);
 }
 
+static void proc_rra(CPUClass *cpu)
+{
+    uint8_t carry = CPU_FLAG_C;
+    uint8_t new_c = cpu->context->registers.a & 1;
+
+    cpu->context->registers.a =
+        (cpu->context->registers.a >> 1) | (carry << 7);
+    cpu->set_flags(cpu, 0, 0, 0, new_c);
+}
+
 static void proc_stop(CPUClass *cpu)
 {
-    if (cpu->parent->context->hw_mode == HW_CGB
-        && cpu->parent->context->speed_switch_armed) {
-        cpu->parent->context->speed_switch_armed = false;
-        cpu->parent->context->double_speed =
-            !cpu->parent->context->double_speed;
-        cpu->parent->context->stop_cycles_remaining = 2050;
+    GameboyClass *gameboy = cpu->parent;
+
+    cpu->context->registers.pc++;
+    gameboy->timer->write(gameboy->timer, DIV, 0);
+
+    if (gameboy->context->hw_mode == HW_CGB
+        && gameboy->context->speed_switch_armed) {
+        gameboy->context->speed_switch_armed = false;
+        gameboy->context->double_speed = !gameboy->context->double_speed;
+        gameboy->cycles(gameboy, 2050);
+        return;
     }
+    cpu->context->stopped = true;
 }
 
 static void proc_daa(CPUClass *cpu)
@@ -151,22 +162,16 @@ static void proc_ccf(CPUClass *cpu)
 
 static void proc_halt(CPUClass *cpu)
 {
+    if (!cpu->context->int_master_enabled && cpu->pending_interrupts(cpu)) {
+        cpu->context->halt_bug = true;
+        return;
+    }
     cpu->context->halted = true;
-}
-
-static void proc_rra(CPUClass *cpu)
-{
-    uint8_t carry = CPU_FLAG_C;
-    uint8_t new_c = cpu->context->registers.a & 1;
-
-    cpu->context->registers.a >>= 1;
-    cpu->context->registers.a |= (carry << 7);
-    cpu->set_flags(cpu, 0, 0, 0, new_c);
 }
 
 static void proc_and(CPUClass *cpu)
 {
-    cpu->context->registers.a &= cpu->context->fetched_data;
+    cpu->context->registers.a &= cpu->context->fetched_data & 0xFF;
     cpu->set_flags(cpu, cpu->context->registers.a == 0, 0, 1, 0);
 }
 
@@ -176,16 +181,18 @@ static void proc_or(CPUClass *cpu)
     cpu->set_flags(cpu, cpu->context->registers.a == 0, 0, 0, 0);
 }
 
+static void proc_xor(CPUClass *cpu)
+{
+    cpu->context->registers.a ^= cpu->context->fetched_data & 0xFF;
+    cpu->set_flags(cpu, cpu->context->registers.a == 0, 0, 0, 0);
+}
+
 static void proc_cp(CPUClass *cpu)
 {
-    int32_t n = (int32_t) cpu->context->registers.a
-        - (int32_t) cpu->context->fetched_data;
+    uint8_t a = cpu->context->registers.a;
+    uint8_t value = cpu->context->fetched_data & 0xFF;
 
-    cpu->set_flags(cpu, n == 0, 1,
-        ((int32_t) cpu->context->registers.a & 0x0F)
-                - ((int32_t) cpu->context->fetched_data & 0x0F)
-            < 0,
-        n < 0);
+    cpu->set_flags(cpu, a == value, 1, (a & 0x0F) < (value & 0x0F), a < value);
 }
 
 static void proc_cb(CPUClass *cpu)
@@ -196,135 +203,108 @@ static void proc_cb(CPUClass *cpu)
     uint8_t bit_op = (op >> 6) & 0b11;
     uint8_t reg_val = cpu->read_register8(cpu, reg);
 
-    cpu->parent->cycles(cpu->parent, 1);
-    if (reg == RT_HL) {
-        cpu->parent->cycles(cpu->parent, 2);
-    }
     switch (bit_op) {
         case CB_BIT: {
-            return cpu->set_flags(cpu, !(reg_val & (1 << bit)), 0, 1, -1);
+            cpu->set_flags(cpu, !(reg_val & (1 << bit)), 0, 1, -1);
+            return;
         }
         case CB_RST: {
-            reg_val &= ~(1 << bit);
-            return cpu->set_register8(cpu, reg, reg_val);
+            cpu->set_register8(cpu, reg, reg_val & ~(1 << bit));
+            return;
         }
         case CB_SET: {
-            reg_val |= (1 << bit);
-            return cpu->set_register8(cpu, reg, reg_val);
+            cpu->set_register8(cpu, reg, reg_val | (1 << bit));
+            return;
         }
     }
 
     bool flag_c = CPU_FLAG_C;
+    uint8_t result = 0;
+    bool carry = false;
 
     switch (bit) {
         case CB_RLC: {
-            bool set_c = false;
-            uint8_t result = (reg_val << 1) & 0xFF;
-
-            if ((reg_val & (1 << 7)) != 0) {
-                result |= 1;
-                set_c = true;
-            }
-            cpu->set_register8(cpu, reg, result);
-            cpu->set_flags(cpu, result == 0, false, false, set_c);
+            result = (reg_val << 1) | (reg_val >> 7);
+            carry = reg_val & 0x80;
             break;
         }
         case CB_RRC: {
-            uint8_t old = reg_val;
-
-            reg_val >>= 1;
-            reg_val |= (old << 7);
-            cpu->set_register8(cpu, reg, reg_val);
-            cpu->set_flags(cpu, !reg_val, false, false, old & 1);
+            result = (reg_val >> 1) | (reg_val << 7);
+            carry = reg_val & 1;
             break;
         }
         case CB_RL: {
-            uint8_t old = reg_val;
-
-            reg_val <<= 1;
-            reg_val |= flag_c;
-            cpu->set_register8(cpu, reg, reg_val);
-            cpu->set_flags(cpu, !reg_val, false, false, !!(old & 0x80));
+            result = (reg_val << 1) | flag_c;
+            carry = reg_val & 0x80;
             break;
         }
         case CB_RR: {
-            uint8_t old = reg_val;
-
-            reg_val >>= 1;
-            reg_val |= (flag_c << 7);
-            cpu->set_register8(cpu, reg, reg_val);
-            cpu->set_flags(cpu, !reg_val, false, false, old & 1);
+            result = (reg_val >> 1) | (flag_c << 7);
+            carry = reg_val & 1;
             break;
         }
         case CB_SLA: {
-            uint8_t old = reg_val;
-
-            reg_val <<= 1;
-            cpu->set_register8(cpu, reg, reg_val);
-            cpu->set_flags(cpu, !reg_val, false, false, !!(old & 0x80));
+            result = reg_val << 1;
+            carry = reg_val & 0x80;
             break;
         }
         case CB_SRA: {
-            uint8_t u = (int8_t) reg_val >> 1;
-
-            cpu->set_register8(cpu, reg, u);
-            cpu->set_flags(cpu, !u, 0, 0, reg_val & 1);
+            result = (reg_val >> 1) | (reg_val & 0x80);
+            carry = reg_val & 1;
             break;
         }
         case CB_SWP: {
-            reg_val = ((reg_val & 0xF0) >> 4) | ((reg_val & 0xF) << 4);
-            cpu->set_register8(cpu, reg, reg_val);
-            cpu->set_flags(cpu, reg_val == 0, false, false, false);
+            result = ((reg_val & 0xF0) >> 4) | ((reg_val & 0x0F) << 4);
+            carry = false;
             break;
         }
         case CB_SRL: {
-            uint8_t u = reg_val >> 1;
-            cpu->set_register8(cpu, reg, u);
-            cpu->set_flags(cpu, !u, 0, 0, reg_val & 1);
+            result = reg_val >> 1;
+            carry = reg_val & 1;
             break;
         }
     }
-}
-
-static void proc_xor(CPUClass *cpu)
-{
-    cpu->context->registers.a ^= cpu->context->fetched_data & 0xFF;
-    cpu->set_flags(cpu, cpu->context->registers.a == 0, 0, 0, 0);
-}
-
-static void jump(CPUClass *cpu, uint16_t address, bool push_pc)
-{
-    if (cpu->check_condition(cpu)) {
-        if (push_pc) {
-            cpu->parent->cycles(cpu->parent, 2);
-            cpu->parent->stack->push16(
-                cpu->parent->stack, cpu->get_registers(cpu)->pc);
-        }
-        cpu->get_registers(cpu)->pc = address;
-        cpu->parent->cycles(cpu->parent, 1);
-    }
+    cpu->set_register8(cpu, reg, result);
+    cpu->set_flags(cpu, result == 0, 0, 0, carry);
 }
 
 static void proc_jp(CPUClass *cpu)
 {
-    jump(cpu, cpu->context->fetched_data, false);
+    if (!cpu->check_condition(cpu)) {
+        return;
+    }
+    cpu->context->registers.pc = cpu->context->fetched_data;
+    if (cpu->context->inst->mode != AM_R) {
+        cpu->parent->cycles(cpu->parent, 1);
+    }
 }
 
 static void proc_jr(CPUClass *cpu)
 {
-    char offset = (char) (cpu->context->fetched_data & 0xFF);
-    uint16_t address = cpu->context->registers.pc + offset;
-    jump(cpu, address, false);
+    int8_t offset = (int8_t) (cpu->context->fetched_data & 0xFF);
+
+    if (!cpu->check_condition(cpu)) {
+        return;
+    }
+    cpu->context->registers.pc += offset;
+    cpu->parent->cycles(cpu->parent, 1);
 }
 
 static void proc_call(CPUClass *cpu)
 {
-    jump(cpu, cpu->context->fetched_data, true);
+    if (!cpu->check_condition(cpu)) {
+        return;
+    }
+    cpu->parent->cycles(cpu->parent, 1);
+    cpu->push_cycle(cpu, cpu->context->registers.pc);
+    cpu->context->registers.pc = cpu->context->fetched_data;
 }
 
 static void proc_rst(CPUClass *cpu)
 {
-    jump(cpu, cpu->context->inst->parameter, true);
+    cpu->parent->cycles(cpu->parent, 1);
+    cpu->push_cycle(cpu, cpu->context->registers.pc);
+    cpu->context->registers.pc = cpu->context->inst->parameter;
 }
 
 static void proc_ret(CPUClass *cpu)
@@ -332,156 +312,115 @@ static void proc_ret(CPUClass *cpu)
     if (cpu->context->inst->condition != CT_NONE) {
         cpu->parent->cycles(cpu->parent, 1);
     }
-    if (cpu->check_condition(cpu)) {
-        uint16_t lo = cpu->parent->stack->pop(cpu->parent->stack);
-        cpu->parent->cycles(cpu->parent, 1);
-        uint16_t hi = cpu->parent->stack->pop(cpu->parent->stack);
-        cpu->parent->cycles(cpu->parent, 1);
-
-        uint16_t n = (hi << 8) | lo;
-        cpu->context->registers.pc = n;
-        cpu->parent->cycles(cpu->parent, 1);
+    if (!cpu->check_condition(cpu)) {
+        return;
     }
+    cpu->context->registers.pc = cpu->pop_cycle(cpu);
+    cpu->parent->cycles(cpu->parent, 1);
 }
 
 static void proc_reti(CPUClass *cpu)
 {
     cpu->context->int_master_enabled = true;
+    cpu->context->enabling_ime = false;
     proc_ret(cpu);
 }
 
 static void proc_pop(CPUClass *cpu)
 {
-    uint16_t lo = cpu->parent->stack->pop(cpu->parent->stack);
-    cpu->parent->cycles(cpu->parent, 1);
-    uint16_t hi = cpu->parent->stack->pop(cpu->parent->stack);
-    cpu->parent->cycles(cpu->parent, 1);
-
-    uint16_t n = (hi << 8) | lo;
-    cpu->set_register(cpu, cpu->context->inst->register_1, n);
-
-    if (cpu->context->inst->register_1 == RT_AF) {
-        cpu->set_register(cpu, cpu->context->inst->register_1, n & 0xFFF0);
-    }
+    cpu->set_register(
+        cpu, cpu->context->inst->register_1, cpu->pop_cycle(cpu));
 }
 
 static void proc_push(CPUClass *cpu)
 {
-    uint8_t hi =
-        (cpu->read_register(cpu, cpu->context->inst->register_1) >> 8) & 0xFF;
     cpu->parent->cycles(cpu->parent, 1);
-    cpu->parent->stack->push(cpu->parent->stack, hi);
-
-    uint8_t lo =
-        cpu->read_register(cpu, cpu->context->inst->register_1) & 0xFF;
-    cpu->parent->cycles(cpu->parent, 1);
-    cpu->parent->stack->push(cpu->parent->stack, lo);
-
-    cpu->parent->cycles(cpu->parent, 1);
+    cpu->push_cycle(
+        cpu, cpu->read_register(cpu, cpu->context->inst->register_1));
 }
 
 static void proc_inc(CPUClass *cpu)
 {
-    uint16_t value =
-        cpu->read_register(cpu, cpu->context->inst->register_1) + 1;
+    instruction_t *inst = cpu->context->inst;
 
-    if (cpu->is_16bit(cpu->context->inst->register_1)) {
-        cpu->parent->cycles(cpu->parent, 1);
-    }
-    if (cpu->context->inst->register_1 == RT_HL
-        && cpu->context->inst->mode == AM_MR) {
-        value = cpu->parent->bus->read(
-                    cpu->parent->bus, cpu->read_register(cpu, RT_HL))
-            + 1;
-        value &= 0xFF;
-        cpu->parent->bus->write(
-            cpu->parent->bus, cpu->read_register(cpu, RT_HL), value);
-    } else {
-        cpu->set_register(cpu, cpu->context->inst->register_1, value);
-        value = cpu->read_register(cpu, cpu->context->inst->register_1);
-    }
-    if ((cpu->context->opcode & 0x03) == 0x03) {
+    if (inst->mode == AM_MR) {
+        uint8_t value = cpu->context->fetched_data + 1;
+        cpu->write_cycle(cpu, cpu->context->mem_dest, value);
+        cpu->set_flags(cpu, value == 0, 0, (value & 0x0F) == 0, -1);
         return;
     }
+    if (cpu->is_16bit(inst->register_1)) {
+        cpu->set_register(
+            cpu, inst->register_1, cpu->context->fetched_data + 1);
+        cpu->parent->cycles(cpu->parent, 1);
+        return;
+    }
+
+    uint8_t value = cpu->context->fetched_data + 1;
+    cpu->set_register(cpu, inst->register_1, value);
     cpu->set_flags(cpu, value == 0, 0, (value & 0x0F) == 0, -1);
 }
 
 static void proc_dec(CPUClass *cpu)
 {
-    uint16_t value =
-        cpu->read_register(cpu, cpu->context->inst->register_1) - 1;
+    instruction_t *inst = cpu->context->inst;
 
-    if (cpu->is_16bit(cpu->context->inst->register_1)) {
-        cpu->parent->cycles(cpu->parent, 1);
-    }
-    if (cpu->context->inst->register_1 == RT_HL
-        && cpu->context->inst->mode == AM_MR) {
-        value = cpu->parent->bus->read(
-                    cpu->parent->bus, cpu->read_register(cpu, RT_HL))
-            - 1;
-        cpu->parent->bus->write(
-            cpu->parent->bus, cpu->read_register(cpu, RT_HL), value);
-    } else {
-        cpu->set_register(cpu, cpu->context->inst->register_1, value);
-        value = cpu->read_register(cpu, cpu->context->inst->register_1);
-    }
-    if ((cpu->context->opcode & 0x0B) == 0x0B) {
+    if (inst->mode == AM_MR) {
+        uint8_t value = cpu->context->fetched_data - 1;
+        cpu->write_cycle(cpu, cpu->context->mem_dest, value);
+        cpu->set_flags(cpu, value == 0, 1, (value & 0x0F) == 0x0F, -1);
         return;
     }
+    if (cpu->is_16bit(inst->register_1)) {
+        cpu->set_register(
+            cpu, inst->register_1, cpu->context->fetched_data - 1);
+        cpu->parent->cycles(cpu->parent, 1);
+        return;
+    }
+
+    uint8_t value = cpu->context->fetched_data - 1;
+    cpu->set_register(cpu, inst->register_1, value);
     cpu->set_flags(cpu, value == 0, 1, (value & 0x0F) == 0x0F, -1);
 }
 
 static void proc_add(CPUClass *cpu)
 {
-    uint32_t value = cpu->read_register(cpu, cpu->context->inst->register_1)
-        + cpu->context->fetched_data;
-    bool is_16bit = cpu->is_16bit(cpu->context->inst->register_1);
+    instruction_t *inst = cpu->context->inst;
 
-    if (is_16bit) {
+    if (inst->register_1 == RT_SP) {
+        uint16_t sp = cpu->context->registers.sp;
+        uint8_t offset = cpu->context->fetched_data & 0xFF;
+
+        cpu->set_flags(cpu, 0, 0, (sp & 0xF) + (offset & 0xF) > 0xF,
+            (sp & 0xFF) + offset > 0xFF);
+        cpu->context->registers.sp = sp + (int8_t) offset;
+        cpu->parent->cycles(cpu->parent, 2);
+        return;
+    }
+    if (cpu->is_16bit(inst->register_1)) {
+        uint16_t hl = cpu->read_register(cpu, RT_HL);
+        uint16_t value = cpu->context->fetched_data;
+        uint32_t result = (uint32_t) hl + value;
+
+        cpu->set_flags(cpu, -1, 0, (hl & 0xFFF) + (value & 0xFFF) > 0xFFF,
+            result > 0xFFFF);
+        cpu->set_register(cpu, RT_HL, result & 0xFFFF);
         cpu->parent->cycles(cpu->parent, 1);
-    }
-    if (cpu->context->inst->register_1 == RT_SP) {
-        value = cpu->read_register(cpu, cpu->context->inst->register_1)
-            + (char) cpu->context->fetched_data;
+        return;
     }
 
-    int32_t z = (value & 0XFF) == 0;
-    int32_t h = (cpu->read_register(cpu, cpu->context->inst->register_1) & 0xF)
-            + (cpu->context->fetched_data & 0xF)
-        >= 0x10;
-    int32_t c =
-        (int32_t) (cpu->read_register(cpu, cpu->context->inst->register_1)
-            & 0xFF)
-            + (int32_t) (cpu->context->fetched_data & 0xFF)
-        >= 0x100;
+    uint8_t a = cpu->context->registers.a;
+    uint8_t value = cpu->context->fetched_data & 0xFF;
+    uint16_t result = a + value;
 
-    if (is_16bit) {
-        z = -1;
-        h = (cpu->read_register(cpu, cpu->context->inst->register_1) & 0xFFF)
-                + (cpu->context->fetched_data & 0xFFF)
-            >= 0x1000;
-        uint32_t n = ((uint32_t) cpu->read_register(
-                         cpu, cpu->context->inst->register_1))
-            + ((uint32_t) cpu->context->fetched_data);
-        c = n >= 0x10000;
-    }
-    if (cpu->context->inst->register_1 == RT_SP) {
-        z = 0;
-        h = (cpu->read_register(cpu, cpu->context->inst->register_1) & 0xF)
-                + (cpu->context->fetched_data & 0xF)
-            >= 0x10;
-        c = (int32_t) (cpu->read_register(cpu, cpu->context->inst->register_1)
-                & 0xFF)
-                + (int32_t) (cpu->context->fetched_data & 0xFF)
-            >= 0x100;
-    }
-    cpu->set_register(cpu, cpu->context->inst->register_1, value & 0xFFFF);
-    cpu->set_flags(cpu, z, 0, h, c);
+    cpu->context->registers.a = result & 0xFF;
+    cpu->set_flags(cpu, (result & 0xFF) == 0, 0,
+        (a & 0xF) + (value & 0xF) > 0xF, result > 0xFF);
 }
 
 static void proc_adc(CPUClass *cpu)
 {
-    uint16_t u = cpu->context->fetched_data;
+    uint16_t u = cpu->context->fetched_data & 0xFF;
     uint16_t a = cpu->context->registers.a;
     uint16_t c = CPU_FLAG_C;
 
@@ -492,42 +431,23 @@ static void proc_adc(CPUClass *cpu)
 
 static void proc_sub(CPUClass *cpu)
 {
-    uint16_t value = cpu->read_register(cpu, cpu->context->inst->register_1)
-        - cpu->context->fetched_data;
-    int32_t z = value == 0;
-    int32_t h =
-        ((int32_t) cpu->read_register(cpu, cpu->context->inst->register_1)
-            & 0xF)
-            - ((int32_t) cpu->context->fetched_data & 0xF)
-        < 0;
-    int32_t c =
-        ((int32_t) cpu->read_register(cpu, cpu->context->inst->register_1))
-            - ((int32_t) cpu->context->fetched_data)
-        < 0;
+    uint8_t a = cpu->context->registers.a;
+    uint8_t value = cpu->context->fetched_data & 0xFF;
 
-    cpu->set_register(cpu, cpu->context->inst->register_1, value);
-    cpu->set_flags(cpu, z, 1, h, c);
+    cpu->context->registers.a = a - value;
+    cpu->set_flags(cpu, a == value, 1, (a & 0x0F) < (value & 0x0F), a < value);
 }
 
 static void proc_sbc(CPUClass *cpu)
 {
-    uint8_t value = cpu->context->fetched_data + CPU_FLAG_C;
-    int32_t z =
-        (cpu->read_register(cpu, cpu->context->inst->register_1) - value) == 0;
-    int32_t h =
-        ((int32_t) cpu->read_register(cpu, cpu->context->inst->register_1)
-            & 0xF)
-            - ((int32_t) cpu->context->fetched_data & 0xF)
-            - ((int32_t) CPU_FLAG_C)
-        < 0;
-    int32_t c =
-        ((int32_t) cpu->read_register(cpu, cpu->context->inst->register_1))
-            - ((int32_t) cpu->context->fetched_data) - ((int32_t) CPU_FLAG_C)
-        < 0;
+    int32_t a = cpu->context->registers.a;
+    int32_t value = cpu->context->fetched_data & 0xFF;
+    int32_t c = CPU_FLAG_C;
+    int32_t result = a - value - c;
 
-    cpu->set_register(cpu, cpu->context->inst->register_1,
-        cpu->read_register(cpu, cpu->context->inst->register_1) - value);
-    cpu->set_flags(cpu, z, 1, h, c);
+    cpu->context->registers.a = result & 0xFF;
+    cpu->set_flags(cpu, (result & 0xFF) == 0, 1,
+        (a & 0x0F) - (value & 0x0F) - c < 0, result < 0);
 }
 
 static proc_fn get_proc(InstructionsClass *self, instruction_type_t type)

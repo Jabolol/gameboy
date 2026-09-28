@@ -8,6 +8,7 @@
 
 typedef struct gameboy_aux GameboyClass;
 typedef struct cpu_aux CPUClass;
+typedef struct snapshot_aux SnapshotClass;
 
 typedef struct cpu_aux {
     /* Properties */
@@ -23,7 +24,6 @@ typedef struct cpu_aux {
     void (*execute)(CPUClass *);
     void (*set_flags)(CPUClass *, char, char, char, char);
     bool (*check_condition)(CPUClass *);
-    uint16_t (*reverse)(uint16_t);
     uint16_t (*read_register)(CPUClass *, register_type_t);
     void (*set_register)(CPUClass *, register_type_t, uint16_t);
     void (*set_ie_register)(CPUClass *, uint8_t);
@@ -35,11 +35,18 @@ typedef struct cpu_aux {
     void (*set_register8)(CPUClass *, register_type_t, uint8_t);
     uint8_t (*get_int_flags)(CPUClass *);
     void (*set_int_flags)(CPUClass *, uint8_t);
-    void (*int_handle)(CPUClass *, uint16_t);
-    bool (*int_check)(CPUClass *, uint16_t, interrupt_t);
+    uint8_t (*pending_interrupts)(CPUClass *);
     void (*request_interrupt)(CPUClass *, interrupt_t);
     void (*handle_interrupts)(CPUClass *);
+    uint8_t (*read_cycle)(CPUClass *, uint16_t);
+    void (*write_cycle)(CPUClass *, uint16_t, uint8_t);
+    uint8_t (*fetch_byte)(CPUClass *);
+    uint16_t (*fetch_word)(CPUClass *);
+    void (*push_cycle)(CPUClass *, uint16_t);
+    uint16_t (*pop_cycle)(CPUClass *);
+    void (*lock)(CPUClass *);
     void (*pretty_instruction)(CPUClass *, char[INST_BUFF_LEN]);
+    void (*serialize)(CPUClass *, SnapshotClass *);
 } CPUClass;
 
 extern const class_t *CPU;
