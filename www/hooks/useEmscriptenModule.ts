@@ -1,15 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
-
-interface EmscriptenModule {
-  canvas: HTMLCanvasElement | null;
-  locateFile?: (path: string, prefix: string) => string;
-  ccall: (
-    name: string,
-    returnType: string | null,
-    argTypes: string[],
-    args: unknown[],
-  ) => unknown;
-}
+import type { EmscriptenModule } from "../types/emulator.ts";
+import { prepareFilesystem } from "../utils/filesystem.ts";
 
 type EmscriptenFactory = (
   module?: Partial<EmscriptenModule>,
@@ -17,7 +8,6 @@ type EmscriptenFactory = (
 
 interface UseEmscriptenModuleResult {
   instance: EmscriptenModule | null;
-  loading: boolean;
   error: Error | null;
 }
 
@@ -25,7 +15,6 @@ export function useEmscriptenModule(
   canvas: HTMLCanvasElement | null,
 ): UseEmscriptenModuleResult {
   const [instance, setInstance] = useState<EmscriptenModule | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -34,7 +23,6 @@ export function useEmscriptenModule(
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
       setError(null);
 
       try {
@@ -45,6 +33,7 @@ export function useEmscriptenModule(
           canvas,
           locateFile: (path) => `/${path}`,
         });
+        await prepareFilesystem(moduleInstance);
 
         if (!cancelled) {
           setInstance(moduleInstance);
@@ -55,10 +44,6 @@ export function useEmscriptenModule(
           setError(error);
           console.error("Failed to load Emscripten module:", error);
         }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
       }
     })();
 
@@ -67,5 +52,5 @@ export function useEmscriptenModule(
     };
   }, [canvas, instance]);
 
-  return { instance, loading, error };
+  return { instance, error };
 }

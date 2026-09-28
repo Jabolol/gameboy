@@ -1,92 +1,90 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { setupVolumeControl } from "../utils/audioSetup.ts";
-import { getGameToLoad } from "../utils/gameLoader.ts";
-import type { GameName } from "../utils/gameLoader.ts";
+import { installRom, isRomFile, sanitizeRomName } from "../utils/filesystem.ts";
+import {
+  fetchRom,
+  formatGameName,
+  getGameToLoad,
+  isValidGame,
+} from "../utils/gameLoader.ts";
+import { GameboySession } from "../utils/session.ts";
 import { useEmscriptenModule } from "./useEmscriptenModule.ts";
 
-const isUnwindError = (err: unknown) => err === "unwind";
-
-const CLEANUP_DELAY_MS = 100;
+const nextFrame = () =>
+  new Promise((resolve) => requestAnimationFrame(resolve));
 
 export function useGameboyInitializer() {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
-  const [currentGame, setCurrentGame] = useState<GameName | null>(null);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const instanceRef = useRef<number | null>(null);
+  const [currentGame, setCurrentGame] = useState<string | null>(null);
+  const [session, setSession] = useState<GameboySession | null>(null);
+  const [pendingGame, setPendingGame] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const sessionRef = useRef<GameboySession | null>(null);
 
-  const { instance, loading, error } = useEmscriptenModule(canvas);
+  const { instance, error } = useEmscriptenModule(canvas);
 
   useEffect(() => {
     setupVolumeControl();
     setCanvas(document.getElementById("canvas") as HTMLCanvasElement | null);
   }, []);
 
-  const loadGame = useCallback((game: GameName) => {
-    if (!instance) return false;
+  const loadGame = useCallback(async (name: string, data?: Uint8Array) => {
+    if (!instance) return;
+    if (!isRomFile(name)) {
+      setFailure("Only .gb and .gbc files can be opened");
+      return;
+    }
 
+    setPendingGame(name);
+    setFailure(null);
     try {
-      const ptr = instance.ccall("gameboy_create", "number", ["string"], [
-        `ROMs/${game}`,
-      ]) as number;
+      const rom = data ?? (isValidGame(name) ? await fetchRom(name) : null);
+      if (!rom) return;
 
-      if (!ptr) return false;
-
-      instanceRef.current = ptr;
-
-      try {
-        instance.ccall("gameboy_start", null, ["number"], [ptr]);
-      } catch (err) {
-        if (!isUnwindError(err)) throw err;
+      if (sessionRef.current) {
+        sessionRef.current.destroy();
+        sessionRef.current = null;
+        setSession(null);
+        await nextFrame();
       }
 
-      return true;
+      const paths = installRom(instance, name, rom);
+      const next = GameboySession.create(instance, paths.rom, paths.save);
+      if (!next) throw new Error(`${name} is not a valid ROM`);
+
+      next.start();
+      sessionRef.current = next;
+      setSession(next);
+      setCurrentGame(name);
     } catch (err) {
       console.error("Failed to load game:", err);
-      return false;
+      setFailure(`${formatGameName(name)} could not be loaded`);
+    } finally {
+      setPendingGame(null);
     }
   }, [instance]);
 
-  const destroyInstance = useCallback(async () => {
-    if (!instance || instanceRef.current === null) return;
-
-    instance.ccall("gameboy_destroy", null, ["number"], [instanceRef.current]);
-    instanceRef.current = null;
-    await new Promise((resolve) => setTimeout(resolve, CLEANUP_DELAY_MS));
-  }, [instance]);
+  const loadRomFile = useCallback(async (file: File) => {
+    await loadGame(
+      sanitizeRomName(file.name),
+      new Uint8Array(await file.arrayBuffer()),
+    );
+  }, [loadGame]);
 
   useEffect(() => {
-    if (!instance || currentGame) return;
-
-    setIsInitializing(true);
-    const initialGame = getGameToLoad();
-
-    if (loadGame(initialGame)) {
-      setCurrentGame(initialGame);
-    }
-
-    setIsInitializing(false);
+    if (instance && !currentGame) loadGame(getGameToLoad());
   }, [instance, currentGame, loadGame]);
 
-  const switchGame = useCallback(async (newGame: GameName) => {
-    if (!instance || isInitializing || newGame === currentGame) return;
-
-    setIsInitializing(true);
-
-    await destroyInstance();
-
-    if (loadGame(newGame)) {
-      setCurrentGame(newGame);
-    }
-
-    setIsInitializing(false);
-  }, [instance, currentGame, isInitializing, destroyInstance, loadGame]);
+  const switchGame = useCallback((game: string) => {
+    if (!pendingGame && game !== currentGame) loadGame(game);
+  }, [currentGame, pendingGame, loadGame]);
 
   return {
-    initialized: !!instance && !!currentGame,
-    scriptLoaded: !!instance,
     loadedGame: currentGame ?? undefined,
-    loading: loading || isInitializing,
-    error,
+    pendingGame: pendingGame ?? undefined,
+    session,
+    failure: error ? "The emulator could not start" : failure,
     switchGame,
+    loadRomFile,
   };
 }
