@@ -1,0 +1,17 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#303a93" />
+  <path d="M164 96h184a16 16 0 0 1 16 16v240a64 64 0 0 1-64 64H164a16 16 0 0 1-16-16V112a16 16 0 0 1 16-16Z" fill="#c9c5c3" />
+  <path d="M164 96h184a16 16 0 0 1 16 16v6H148v-6a16 16 0 0 1 16-16Z" fill="#b3afad" />
+  <path d="M178 128h156a8 8 0 0 1 8 8v96a28 28 0 0 1-28 28H178a8 8 0 0 1-8-8V136a8 8 0 0 1 8-8Z" fill="#6f6c80" />
+  <rect x="200" y="142" width="116" height="104" rx="3" fill="#88c070" />
+  <path d="M233 164h20v10h-20ZM263 164h20v10h-20ZM223 174h70v10h-70ZM223 184h70v10h-70ZM233 194h50v10h-50ZM243 204h30v10h-30ZM253 214h10v10h-10Z" fill="#346856" />
+  <circle cx="184" cy="180" r="5" fill="#e0453a" />
+  <path d="M190 296h20v20h20v20h-20v20h-20v-20h-20v-20h20Z" fill="#27272a" />
+  <circle cx="314" cy="306" r="15" fill="#862a58" />
+  <circle cx="280" cy="326" r="15" fill="#862a58" />
+  <path d="M224 388l22-10" stroke="#787377" stroke-width="8" stroke-linecap="round" />
+  <path d="M258 388l22-10" stroke="#787377" stroke-width="8" stroke-linecap="round" />
+  <path d="M306 394l18-30" stroke="#a09c9e" stroke-width="5" stroke-linecap="round" />
+  <path d="M318 396l18-30" stroke="#a09c9e" stroke-width="5" stroke-linecap="round" />
+  <path d="M330 398l14-24" stroke="#a09c9e" stroke-width="5" stroke-linecap="round" />
+</svg>
