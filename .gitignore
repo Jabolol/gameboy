@@ -58,3 +58,6 @@ ROMs/
 build/
 .cache/
 test/
+
+# macOS
+.DS_Store
