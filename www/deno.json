@@ -58,12 +58,10 @@
       ".",
       "static/gameboy.js",
       "static/gameboy.wasm",
-      "static/gameboy.data"
+      "static/roms"
     ],
     "framework": "fresh",
     "install": "deno install",
     "build": "deno task build"
   }
 }
-
-
