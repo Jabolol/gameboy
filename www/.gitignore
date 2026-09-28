@@ -11,3 +11,4 @@ _fresh/
 node_modules/
 .vscode/
 static/gameboy*
+static/roms/

@@ -1,19 +1,45 @@
+import { DEFAULT_VOLUME, STORAGE_KEYS } from "../constants.ts";
+import { numberStorage } from "./storage.ts";
+
 interface AudioVolumeControl {
   gainNode: GainNode;
   setVolume: (volume: number) => void;
 }
 
+interface AudioSession {
+  type: "auto" | "playback" | "ambient" | "transient" | "play-and-record";
+}
+
 declare global {
   var audioVolumeControl: AudioVolumeControl | undefined;
   var webkitAudioContext: typeof AudioContext | undefined;
+
+  interface Navigator {
+    audioSession?: AudioSession;
+  }
 }
 
-const DEFAULT_VOLUME = 0.7;
-const VOLUME_STORAGE_KEY = "gb-volume";
+const UNLOCK_EVENTS = ["pointerup", "touchend", "keydown", "click"];
 
-function getSavedVolume(): number {
-  const savedVolume = localStorage.getItem(VOLUME_STORAGE_KEY);
-  return savedVolume ? parseFloat(savedVolume) : DEFAULT_VOLUME;
+function resumeOnInteraction(audioContext: AudioContext) {
+  const resume = () => {
+    audioContext.resume().then(() => {
+      if (audioContext.state !== "running") return;
+      for (const type of UNLOCK_EVENTS) {
+        self.removeEventListener(type, resume, true);
+      }
+    });
+  };
+
+  const arm = () => {
+    if (audioContext.state === "running") return;
+    for (const type of UNLOCK_EVENTS) {
+      self.addEventListener(type, resume, true);
+    }
+  };
+
+  arm();
+  audioContext.addEventListener("statechange", arm);
 }
 
 function createAudioContextProxy(
@@ -28,7 +54,7 @@ function createAudioContextProxy(
         target,
         args,
       );
-      const volume = getSavedVolume();
+      const volume = numberStorage.get(STORAGE_KEYS.volume, DEFAULT_VOLUME);
 
       const gainNode = audioContext.createGain();
       gainNode.gain.value = volume;
@@ -47,6 +73,7 @@ function createAudioContextProxy(
         configurable: true,
       });
 
+      resumeOnInteraction(audioContext);
       return audioContext;
     },
   });
@@ -54,6 +81,8 @@ function createAudioContextProxy(
 
 export function setupVolumeControl(): void {
   if (typeof self === "undefined") return;
+
+  if (navigator.audioSession) navigator.audioSession.type = "playback";
 
   const OriginalAudioContext = self.AudioContext ?? self.webkitAudioContext;
   if (!OriginalAudioContext) return;

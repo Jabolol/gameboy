@@ -14,6 +14,10 @@ static uint8_t read(BusClass *self, uint16_t address)
                 self->parent->cartridge, address);
         }
         case CHAR_RANGE: {
+            if (!self->parent->ppu->vram_accessible(
+                    self->parent->ppu, false)) {
+                return 0xFF;
+            }
             return self->parent->ppu->vram_read(self->parent->ppu, address);
         }
         case CART_RAM_RANGE: {
@@ -28,13 +32,21 @@ static uint8_t read(BusClass *self, uint16_t address)
                 self->parent->ram, address - 0x2000);
         }
         case OAM_RANGE: {
-            if (self->parent->dma->transferring(self->parent->dma)) {
+            if (self->parent->dma->transferring(self->parent->dma)
+                || !self->parent->ppu->oam_accessible(
+                    self->parent->ppu, false)) {
                 return 0xFF;
             }
             return self->parent->ppu->oam_read(self->parent->ppu, address);
         }
         case RESERVED_RANGE: {
-            return 0;
+            if (self->parent->dma->transferring(self->parent->dma)) {
+                return 0xFF;
+            }
+            if (self->parent->context->hw_mode == HW_CGB) {
+                return (address & 0xF0) | ((address & 0xF0) >> 4);
+            }
+            return 0x00;
         }
         case IO_REGS_RANGE: {
             return self->parent->io->read(self->parent->io, address);
@@ -46,10 +58,7 @@ static uint8_t read(BusClass *self, uint16_t address)
             return self->parent->cpu->get_ie_register(self->parent->cpu);
         }
         default: {
-            char buff[64];
-            snprintf(buff, sizeof(buff), "out of bounds write %04X at UNKNOWN",
-                address);
-            HANDLE_ERROR(buff);
+            return 0xFF;
         }
     }
 }
@@ -63,7 +72,10 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
             break;
         }
         case CHAR_RANGE: {
-            self->parent->ppu->vram_write(self->parent->ppu, address, value);
+            if (self->parent->ppu->vram_accessible(self->parent->ppu, true)) {
+                self->parent->ppu->vram_write(
+                    self->parent->ppu, address, value);
+            }
             break;
         }
         case CART_RAM_RANGE: {
@@ -81,7 +93,9 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
             break;
         }
         case OAM_RANGE: {
-            if (self->parent->dma->transferring(self->parent->dma)) {
+            if (self->parent->dma->transferring(self->parent->dma)
+                || !self->parent->ppu->oam_accessible(
+                    self->parent->ppu, true)) {
                 return;
             }
             self->parent->ppu->oam_write(self->parent->ppu, address, value);
@@ -102,12 +116,7 @@ static void write(BusClass *self, uint16_t address, uint8_t value)
             self->parent->cpu->set_ie_register(self->parent->cpu, value);
             break;
         }
-        default: {
-            char buff[64];
-            snprintf(buff, sizeof(buff),
-                "not implemented write %04X at UNKNOWN", address);
-            HANDLE_ERROR(buff);
-        }
+        default: break;
     }
 }
 
@@ -121,8 +130,8 @@ static uint16_t read16(BusClass *self, uint16_t address)
 
 static void write16(BusClass *self, uint16_t address, uint16_t value)
 {
-    self->write(self, address + 1, (value >> 8) & 0xFF);
     self->write(self, address, value & 0xFF);
+    self->write(self, address + 1, (value >> 8) & 0xFF);
 }
 
 const BusClass bus_init = {

@@ -1,21 +1,17 @@
 import type { JSX, SVGAttributes } from "preact";
 
-export function PlusIcon(
+export function TriangleIcon(
   props: SVGAttributes<SVGSVGElement>,
 ): JSX.Element {
   return (
     <svg
-      fill="none"
+      fill="currentColor"
       stroke="currentColor"
-      strokeWidth="2.5"
+      strokeWidth="3"
       viewBox="0 0 24 24"
       {...props}
     >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 4v16m8-8H4"
-      />
+      <path strokeLinejoin="round" d="M8 5l10 7-10 7z" />
     </svg>
   );
 }

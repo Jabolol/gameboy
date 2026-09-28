@@ -17,6 +17,7 @@ static void destructor(void *ptr)
 
 static void start(DMAClass *self, uint8_t value)
 {
+    self->context->restart = self->context->active;
     self->context->byte = 0;
     self->context->active = true;
     self->context->start_delay = 2;
@@ -32,18 +33,28 @@ static void tick(DMAClass *self)
         self->context->start_delay -= 1;
         return;
     }
-    self->parent->ppu->oam_write(self->parent->ppu, self->context->byte,
-        self->parent->bus->read(self->parent->bus,
-            (self->context->value * 0x100) + self->context->byte));
+    self->context->restart = false;
+
+    uint16_t source = (self->context->value << 8) | self->context->byte;
+    if (source >= 0xE000) {
+        source -= 0x2000;
+    }
+    ((uint8_t *) self->parent->ppu->context->oam_ram)[self->context->byte] =
+        self->parent->bus->read(self->parent->bus, source);
 
     self->context->byte += 1;
-
     self->context->active = self->context->byte < 0xA0;
 }
 
 static bool transferring(DMAClass *self)
 {
-    return self->context->active;
+    return self->context->active
+        && (!self->context->start_delay || self->context->restart);
+}
+
+static void serialize(DMAClass *self, SnapshotClass *snapshot)
+{
+    snapshot->field(snapshot, self->context, sizeof(*self->context));
 }
 
 const DMAClass init_dma = {
@@ -56,6 +67,7 @@ const DMAClass init_dma = {
     .start = start,
     .tick = tick,
     .transferring = transferring,
+    .serialize = serialize,
 };
 
 const class_t *DMA = (const class_t *) &init_dma;

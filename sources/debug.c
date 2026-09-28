@@ -9,12 +9,13 @@ static void constructor(void *ptr, va_list *args)
 
 static void update(DebugClass *self)
 {
-    if (self->parent->bus->read(self->parent->bus, SERIAL_CONTROL)
-        == FIRST_LAST_SET) {
-        char c = self->parent->bus->read(self->parent->bus, SERIAL_DATA);
-        self->message[self->message_size++] = c;
-        self->parent->bus->write(self->parent->bus, SERIAL_CONTROL, 0);
-    }
+    serial_context_t *serial = self->parent->io->serial;
+
+    self->message_size = serial->log_size < sizeof(self->message) - 1
+        ? serial->log_size
+        : sizeof(self->message) - 1;
+    memcpy(self->message, serial->log, self->message_size);
+    self->message[self->message_size] = '\0';
 }
 
 static void print(DebugClass *self)
@@ -41,8 +42,9 @@ static void cpu_step(DebugClass *self, uint16_t pc)
         "%08llX - %04X: %-12s (%02X %02X %02X) A: %02X F: %s BC: %02X%02X "
         "DE: %02X%02X "
         "HL: %02X%02X\n",
-        cpu->parent->context->ticks, pc, self->instruction_data,
-        cpu->context->opcode, cpu->parent->bus->read(cpu->parent->bus, pc + 1),
+        (unsigned long long) cpu->parent->context->ticks, pc,
+        self->instruction_data, cpu->context->opcode,
+        cpu->parent->bus->read(cpu->parent->bus, pc + 1),
         cpu->parent->bus->read(cpu->parent->bus, pc + 2),
         cpu->context->registers.a, flags, cpu->context->registers.b,
         cpu->context->registers.c, cpu->context->registers.d,

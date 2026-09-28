@@ -6,27 +6,36 @@ An accurate **gameboy** emulator written in C from scratch.
 
 ## development
 
-In order to run the emulator, you need to have `cmake`, a build system like
-`ninja` and a C compiler. `SDL2` is included as a submodule and will be compiled
-along with the project.
+In order to build the emulator, you need `cmake` 3.20 or newer, a C11 compiler
+and `python3`. `SDL2` and `emsdk` are included as submodules, and `SDL2` is
+compiled along with the project. The first configure installs the latest
+`emscripten` through `emsdk`, so it needs an internet connection.
 
 1. Clone the repository
 
 ```bash
-git clone --recurse-submodules git@github.com:Jabolol/gameboy.git .
+git clone --recurse-submodules git@github.com:Jabolol/gameboy.git
+cd gameboy
 ```
 
-2. Add the `ROMs` directory with the ROMs to be loaded in the web version
+2. Create the `ROMs` directory with the ROMs to be loaded in the web version
 
 ```bash
 mkdir ROMs && cp /path/to/rom.gb ROMs
 ```
 
+> [!WARNING]
+> The build fails if the `ROMs` directory is missing, so create it even if it
+> stays empty.
+
 3. Compile the project
 
 ```bash
-cmake -B build -G Ninja && cmake --build build
+cmake -B build && cmake --build build
 ```
+
+Building the emulator also builds the web version into
+`www/static/gameboy.{js,wasm}`.
 
 4. Run the emulator
 
@@ -34,30 +43,48 @@ cmake -B build -G Ninja && cmake --build build
 ./build/gameboy /path/to/rom.gb
 ```
 
+Battery saves are written next to the ROM as `rom.gb.sav`.
+
 ## features
 
 - [x] Bus (Memory Management)
-- [x] CPU
-- [x] PPU (Graphics)
-- [ ] Game Boy Color support (partial / work in progress)
+- [x] CPU (cycle accurate memory accesses, HALT bug, EI delay)
+- [x] PPU (Graphics, access blocking, STAT interrupts, mid-line updates)
+- [x] Game Boy Color support (double speed, VRAM/WRAM banks, palettes, HDMA)
 - [x] Input (Joypad)
 - [x] Timer
+- [x] Serial (Link cable without partner)
 - [x] Interrupts (V-Blank, LCD, Timer, Serial, Joypad)
-- [x] MBC1 - MBC7 (Memory Bank Controllers 1-7)
-- [x] Save States (.sav files)
-- [x] Sound (Square Wave, Wave, Noise)
+- [x] MBC1, MBC1M, MBC2, MBC3 + RTC, MBC30, MBC5 + Rumble, MBC6, MBC7
+- [x] MMM01, HuC1, HuC3, Pocket Camera and Wisdom Tree mappers
+- [x] Battery saves (.sav files, RTC in the standard 48 byte format)
+- [x] Save states and fast forward
+- [x] Game controllers with rumble, touch controls on mobile
+- [x] DMG palettes (gray, green) and GBC LCD color correction
+- [x] Tile viewer colored with the live palettes
+- [x] Sound (Square Wave, Wave, Noise, frame sequencer, high-pass filter)
 - [x] Web version at [gameboy.monad.deno.net](https://gameboy.monad.deno.net/)
 
 ## controls
 
-- `Arrow Keys` - D-Pad
+- `Arrow Keys` - D-Pad (also tilts MBC7 carts)
 - `Z` - A
 - `X` - B
 - `U` - Volume Up
 - `D` - Volume Down
 - `Tab` - Select
 - `Enter` - Start
+- `Space` - Fast Forward (hold)
+- `S` - Save State
+- `L` - Load State
+- `P` - Cycle DMG Palette
+- `C` - Toggle LCD Color Correction
+- `T` - Toggle Tile Viewer (desktop only)
 - `Q` - Quit
+
+Game controllers use the D-Pad or left stick, `B` (right) for A, `A` (bottom)
+for B, `Start` for Start, `Back` for Select and the right shoulder to fast
+forward.
 
 ## web version
 
@@ -66,8 +93,10 @@ In order to run the web version, you need to have `deno` installed.
 
 ### game selection
 
-The web version includes 26 preloaded games. Append `?game=${game}` to the URL
-to load a specific game. If no game is specified, a random game will be loaded.
+The web version includes 28 games, each downloaded only when selected. Append
+`?game=${game}` to the URL to load a specific game. If no game is specified, a
+random game will be loaded. Your own ROMs can be loaded with the `Load ROM…`
+entry of the selector or by dropping a `.gb`/`.gbc` file onto the screen.
 
 The full list of games can be found in
 [`www/utils/gameLoader.ts`](./www/utils/gameLoader.ts).
@@ -82,10 +111,40 @@ The web interface includes a control dock with the following features:
 - **Theme System** - Three available themes: `light`, `dark`, and `auto`
   (automatically detects the game's color palette by sampling canvas pixels and
   switches between light/dark themes accordingly in real-time)
-- **Tiles Viewer** - Toggle visibility of internal gameboy tiles used to render
-  the current frame
-- **Persistent State** - All settings (scale, volume, theme, tiles) are saved to
-  localStorage and restored on page load
+- **Tiles Viewer** - Toggle visibility of the tiles in both VRAM banks, colored
+  with the palettes that use them, and the current palettes
+- **Save States** - Save and restore the whole machine state at any point
+- **Fast Forward** - Run the emulation as fast as possible
+- **Palette** - Cycle between the gray and green DMG palettes
+- **LCD** - Emulate the washed out colors of the Game Boy Color screen
+- **Controllers** - Standard gamepads are supported, with rumble, and touch
+  devices get on-screen controls
+- **Persistent Saves** - Battery saves and save states are kept in IndexedDB
+- **Persistent State** - All settings (scale, volume, theme, tiles, palette,
+  LCD) are saved to localStorage and restored on page load
+
+### mobile
+
+On phones the web version turns into a handheld. The screen sits in a replica of
+the original Game Boy or a Game Boy Color case, with the D-pad, A/B and
+Select/Start as touch controls. The case is picked from the settings menu behind
+the gear, and the site can be added to the home screen to play full screen.
+
+<div>
+    <img src="./assets/mobile-classic.png" width="auto" height="400px" alt="Classic Game Boy case" />
+    <img src="./assets/mobile-berry.png" width="auto" height="400px" alt="Berry Game Boy Color case" />
+    <img src="./assets/mobile-grape.png" width="auto" height="400px" alt="Grape Game Boy Color case" />
+    <img src="./assets/mobile-kiwi.png" width="auto" height="400px" alt="Kiwi Game Boy Color case" />
+</div>
+<div>
+    <img src="./assets/mobile-dandelion.png" width="auto" height="400px" alt="Dandelion Game Boy Color case" />
+    <img src="./assets/mobile-teal.png" width="auto" height="400px" alt="Teal Game Boy Color case" />
+    <img src="./assets/mobile-dynamic.png" width="auto" height="400px" alt="Dynamic liquid glass case" />
+    <img src="./assets/mobile-atomic-menu.png" width="auto" height="400px" alt="Settings menu on the Atomic Purple case" />
+</div>
+
+The Dynamic case is made of liquid glass tinted by the colors at the edge of the
+game screen, with buttons in a contrasting color.
 
 ### running locally
 
@@ -93,12 +152,16 @@ The web interface includes a control dock with the following features:
 > To enable google analytics, set the `GA4_MEASUREMENT_ID` environment variable
 > to your GA4 measurement ID.
 
-The web version will bundle the ROMs available at `ROMs` directory and serve
-them at `http://localhost:5173`.
+Build the project with `cmake` first. This generates `www/static/gameboy.js` and
+`www/static/gameboy.wasm` and copies the ROMs available at `ROMs` directory into
+`www/static/roms`. Then start the development server at `http://localhost:5173`.
 
 ```bash
 deno task --cwd www dev
 ```
+
+For a production build, run `deno task --cwd www build` followed by
+`deno task --cwd www start`.
 
 ![](./www/static/web-ui.png)
 
@@ -148,7 +211,7 @@ deno task --cwd www dev
 
 ![](./assets/super-mario-dx.png)
 
-> [Galaga](https://gameboy.monad.deno.net/?game=galaga)
+> [Galaga](https://gameboy.monad.deno.net/?game=galaga-dx)
 
 ![](./assets/galaga.png) ![](./assets/galaga-dx.png)
 
@@ -160,6 +223,8 @@ deno task --cwd www dev
   List of all opcodes for the Gameboy CPU.
 - [Gameboy Pan Docs](https://gbdev.io/pandocs/): A detailed guide to the Gameboy
   hardware.
+- [Game Boy: Complete Technical Reference](https://gekkio.fi/files/gb-docs/gbctr.pdf):
+  Cycle level documentation of the Gameboy hardware.
 
 ## license
 

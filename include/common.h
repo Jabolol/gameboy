@@ -1,6 +1,8 @@
 #include <SDL2/SDL.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 
 #ifndef __COMMON
     #define __COMMON
@@ -45,15 +47,22 @@
                                    "%s" ANSI_COLOR_RESET "\n",            \
                 __FILE__, __LINE__, __func__, m);                         \
         } while (0)
-    #define BIT(a, n) ((a & (1 << n)) ? 1 : 0)
-    #define BIT_SET(a, n, on)   \
-        {                       \
-            if (on)             \
-                a |= (1 << n);  \
-            else                \
-                a &= ~(1 << n); \
+    #define WARN(m)                                                        \
+        do {                                                               \
+            fprintf(stderr,                                                \
+                ANSI_COLOR_YELLOW "Warn: %s:%d %s() - %s" ANSI_COLOR_RESET \
+                                  "\n",                                    \
+                __FILE__, __LINE__, __func__, m);                          \
+        } while (0)
+    #define BIT(a, n) (((a) & (1 << (n))) ? 1 : 0)
+    #define BIT_SET(a, n, on)       \
+        {                           \
+            if (on)                 \
+                (a) |= (1 << (n));  \
+            else                    \
+                (a) &= ~(1 << (n)); \
         }
-    #define BETWEEN(a, b, c) ((a >= b) && (a <= c))
+    #define BETWEEN(a, b, c) (((a) >= (b)) && ((a) <= (c)))
     #define UNUSED           __attribute__((unused))
     #define ROM_RANGE        0 ... 0x7FFF
     #define CHAR_RANGE       0x8000 ... 0x9FFF
@@ -78,63 +87,78 @@
     #define CB_SRL           7
     #define LOOKUP_REG1      self->str_register_lookup[instruction->register_1]
     #define LOOKUP_REG2      self->str_register_lookup[instruction->register_2]
-    #define WIDTH            768
-    #define HEIGHT           576
-    #define SCALE            3
-    #define JOYPAD           0xFF00
-    #define SERIAL_DATA      0xFF01
-    #define SERIAL_CONTROL   0xFF02
-    #define FIRST_LAST_SET   0b10000001
-    #define DIV              0xFF04
-    #define TIMA             0xFF05
-    #define TMA              0xFF06
-    #define TAC              0xFF07
-    #define TIMER_RANGE      0xFF04 ... 0xFF07
-    #define LCD_RANGE        0xFF40 ... 0xFF6B
-    #define SOUND_RANGE      0xFF10 ... 0xFF3F
-    #define INTERRUPT_FLAG   0xFF0F
-    #define TRANSFER_REG     0xFF46
-    #define LCD_OPRI         0xFF6C
-    #define LCD_UNDOC_FF72   0xFF72
-    #define LCD_UNDOC_FF73   0xFF73
-    #define LCD_UNDOC_FF74   0xFF74
-    #define LCD_UNDOC_FF75   0xFF75
-    #define LCD_PCM12        0xFF76
-    #define LCD_PCM34        0xFF77
-    #define INST_BUFF_LEN    16
-    #define START_LOCATION   0x8000
-    #define LCD_Y_COORD      0xFF44
-    #define LCD_CONTROL      0xFF40
-    #define LCD_BG_PAL       0xFF47
-    #define LCD_S1_PAL       0xFF48
-    #define LCD_S2_PAL       0xFF49
-    #define KEY1             0xFF4D
-    #define LCD_VBK          0xFF4F
-    #define LCD_HDMA1        0xFF51
-    #define LCD_HDMA2        0xFF52
-    #define LCD_HDMA3        0xFF53
-    #define LCD_HDMA4        0xFF54
-    #define LCD_HDMA5        0xFF55
-    #define LCD_BCPS         0xFF68
-    #define LCD_BCPD         0xFF69
-    #define LCD_OCPS         0xFF6A
-    #define LCD_OCPD         0xFF6B
-    #define LCD_SVBK         0xFF70
-    #define HBLANK_OFF       3
-    #define VBLANK_OFF       4
-    #define OAM_OFF          5
-    #define LYC_OFF          6
-    #define BUFFER_SIZE      256
-    #define LINES_PER_FRAME  154
-    #define TICKS_PER_LINE   456
-    #define Y_RES            144
-    #define X_RES            160
-    #define FPS              60
-    #define MAX_FIFO_ITEMS   8
-    #define OAM_ENTRIES      40
-    #define MAX_SPRITES      10
-    #define LCDC_BGW_ENABLE  (BIT(self->parent->lcd->context->control, 0))
-    #define LCDC_OBJ_ENABLE  (BIT(self->parent->lcd->context->control, 1))
+    #ifdef __EMSCRIPTEN__
+        #define SCALE 3
+    #else
+        #define SCALE 2
+    #endif
+    #define JOYPAD          0xFF00
+    #define SERIAL_DATA     0xFF01
+    #define SERIAL_CONTROL  0xFF02
+    #define FIRST_LAST_SET  0b10000001
+    #define DIV             0xFF04
+    #define TIMA            0xFF05
+    #define TMA             0xFF06
+    #define TAC             0xFF07
+    #define TIMER_RANGE     0xFF04 ... 0xFF07
+    #define LCD_RANGE       0xFF40 ... 0xFF6B
+    #define SOUND_RANGE     0xFF10 ... 0xFF3F
+    #define INTERRUPT_FLAG  0xFF0F
+    #define TRANSFER_REG    0xFF46
+    #define LCD_OPRI        0xFF6C
+    #define LCD_UNDOC_FF72  0xFF72
+    #define LCD_UNDOC_FF73  0xFF73
+    #define LCD_UNDOC_FF74  0xFF74
+    #define LCD_UNDOC_FF75  0xFF75
+    #define LCD_PCM12       0xFF76
+    #define LCD_PCM34       0xFF77
+    #define INST_BUFF_LEN   16
+    #define START_LOCATION  0x8000
+    #define LCD_CONTROL     0xFF40
+    #define LCD_STATUS      0xFF41
+    #define LCD_SCROLL_Y    0xFF42
+    #define LCD_SCROLL_X    0xFF43
+    #define LCD_Y_COORD     0xFF44
+    #define LCD_Y_COMPARE   0xFF45
+    #define LCD_BG_PAL      0xFF47
+    #define LCD_S1_PAL      0xFF48
+    #define LCD_S2_PAL      0xFF49
+    #define LCD_WINDOW_Y    0xFF4A
+    #define LCD_WINDOW_X    0xFF4B
+    #define KEY0            0xFF4C
+    #define KEY1            0xFF4D
+    #define LCD_VBK         0xFF4F
+    #define BOOT_BANK       0xFF50
+    #define LCD_HDMA1       0xFF51
+    #define LCD_HDMA2       0xFF52
+    #define LCD_HDMA3       0xFF53
+    #define LCD_HDMA4       0xFF54
+    #define LCD_HDMA5       0xFF55
+    #define INFRARED_PORT   0xFF56
+    #define LCD_BCPS        0xFF68
+    #define LCD_BCPD        0xFF69
+    #define LCD_OCPS        0xFF6A
+    #define LCD_OCPD        0xFF6B
+    #define LCD_SVBK        0xFF70
+    #define HBLANK_OFF      3
+    #define VBLANK_OFF      4
+    #define OAM_OFF         5
+    #define LYC_OFF         6
+    #define BUFFER_SIZE     256
+    #define LINES_PER_FRAME 154
+    #define TICKS_PER_LINE  456
+    #define TICKS_PER_FRAME (LINES_PER_FRAME * TICKS_PER_LINE)
+    #define CLOCK_SPEED     4194304
+    #define OAM_SCAN_TICKS  80
+    #define TRANSFER_TICKS  172
+    #define Y_RES           144
+    #define X_RES           160
+    #define FPS             60
+    #define OAM_ENTRIES     40
+    #define MAX_SPRITES     10
+    #define SERIAL_LOG_SIZE 4096
+    #define LCDC_BGW_ENABLE (BIT(self->parent->lcd->context->control, 0))
+    #define LCDC_OBJ_ENABLE (BIT(self->parent->lcd->context->control, 1))
     #define LCDC_OBJ_HEIGHT \
         (BIT(self->parent->lcd->context->control, 2) ? 16 : 8)
     #define LCDC_BG_MAP_AREA \
@@ -153,20 +177,51 @@
     #define AUDIO_FORMAT      AUDIO_S16SYS
     #define AUDIO_CHANNELS    2
     #define AUDIO_SAMPLES     1024
-    #define AUDIO_MAX_SAMPLES 4096
+    #define AUDIO_RING_FRAMES 16384
+    #define AUDIO_TARGET_FILL 4096
 
 typedef enum { HW_DMG, HW_CGB } hardware_mode_t;
 
+typedef enum {
+    BUTTON_A = 1,
+    BUTTON_B = 2,
+    BUTTON_SELECT = 4,
+    BUTTON_START = 8,
+    BUTTON_RIGHT = 16,
+    BUTTON_LEFT = 32,
+    BUTTON_UP = 64,
+    BUTTON_DOWN = 128,
+} button_t;
+
+typedef enum {
+    REQUEST_SAVE_STATE = 1,
+    REQUEST_LOAD_STATE = 2,
+    REQUEST_REFRESH_COLORS = 4,
+} request_t;
+
+typedef enum {
+    SETTING_TURBO,
+    SETTING_PALETTE,
+    SETTING_COLOR_CORRECTION,
+    SETTING_TILES,
+    SETTING_PAUSED,
+} setting_t;
+
+typedef enum { PALETTE_GRAY, PALETTE_GREEN, PALETTE_COUNT } dmg_palette_t;
+
 typedef struct {
-    bool paused;
-    bool running;
-    bool die;
+    atomic_bool paused;
+    atomic_bool running;
+    atomic_bool die;
+    atomic_bool turbo;
+    atomic_uint requests;
+    atomic_uint palette;
+    atomic_bool color_correction;
     uint64_t ticks;
     uint32_t prev_frame;
     hardware_mode_t hw_mode;
     bool double_speed;
     bool speed_switch_armed;
-    uint16_t stop_cycles_remaining;
 } emulator_context_t;
 
 typedef struct {
@@ -186,41 +241,157 @@ typedef struct {
     uint16_t global_checksum;
 } rom_header_t;
 
+typedef enum {
+    MBC_NONE,
+    MBC_1,
+    MBC_1M,
+    MBC_2,
+    MBC_3,
+    MBC_5,
+    MBC_6,
+    MBC_7,
+    MBC_MMM01,
+    MBC_HUC1,
+    MBC_HUC3,
+    MBC_CAMERA,
+    MBC_M161,
+    MBC_WISDOM_TREE,
+} mbc_type_t;
+
+typedef enum {
+    CART_RAM = 1,
+    CART_BATTERY = 2,
+    CART_RTC = 4,
+    CART_RUMBLE = 8,
+} cartridge_feature_t;
+
+typedef struct {
+    const char *name;
+    mbc_type_t mbc;
+    uint8_t features;
+} cartridge_type_t;
+
+typedef enum {
+    EEPROM_IDLE,
+    EEPROM_COMMAND,
+    EEPROM_READ,
+    EEPROM_WRITE,
+    EEPROM_WRITE_ALL,
+} eeprom_state_t;
+
+typedef enum {
+    FLASH_READ,
+    FLASH_ID,
+    FLASH_PROGRAM,
+    FLASH_STATUS,
+} flash_mode_t;
+
+typedef struct {
+    uint8_t s;
+    uint8_t m;
+    uint8_t h;
+    uint16_t d;
+    bool halt;
+    bool carry;
+    uint8_t latched[5];
+    uint8_t latch_state;
+    uint64_t last_tick;
+    uint32_t sub_second;
+} mbc3_rtc_t;
+
+typedef struct {
+    uint8_t rom_bank[2];
+    bool rom_flash[2];
+    uint8_t ram_bank[2];
+    bool flash_enabled;
+    bool flash_write_enabled;
+    uint8_t *flash;
+    uint8_t flash_state;
+    flash_mode_t flash_mode;
+} mbc6_state_t;
+
+typedef struct {
+    bool ram_enabled2;
+    bool latched;
+    uint16_t accel_x;
+    uint16_t accel_y;
+    uint8_t eeprom[256];
+    bool cs;
+    bool clk;
+    bool di;
+    bool do_bit;
+    bool write_enabled;
+    eeprom_state_t state;
+    uint16_t shift;
+    uint8_t bits;
+    uint8_t command;
+    uint8_t address;
+} mbc7_state_t;
+
+typedef struct {
+    bool mapped;
+    uint8_t rom_low;
+    uint8_t rom_mid;
+    uint8_t rom_high;
+    uint8_t rom_mask;
+    uint8_t ram_low;
+    uint8_t ram_high;
+    uint8_t ram_mask;
+    bool mode_locked;
+    bool multiplex;
+    uint32_t base;
+} mmm01_state_t;
+
+typedef struct {
+    uint8_t mode;
+    uint8_t command;
+    uint8_t result;
+    uint8_t address;
+    uint8_t memory[256];
+    uint16_t minutes;
+    uint16_t days;
+    uint64_t last_tick;
+    uint64_t sub_minute;
+} huc3_state_t;
+
+typedef struct {
+    uint8_t registers[0x36];
+    bool registers_selected;
+} camera_state_t;
+
 typedef struct {
     char filename[1024];
+    char save_path[1024];
     uint32_t rom_size;
+    uint32_t rom_banks;
     uint8_t *rom_data;
     rom_header_t *header;
-    bool ram_enabled;
-    bool ram_banking;
-    uint8_t *rom_bank_x;
-    uint8_t banking_mode;
-    uint16_t rom_bank_value;
-    uint8_t ram_bank_value;
-    uint8_t *ram_bank;
-    uint8_t *ram_banks[0x10];
+    mbc_type_t mbc;
     bool has_battery;
     bool has_rtc;
+    bool has_rumble;
     bool needs_save;
-    uint8_t rtc_s;
-    uint8_t rtc_m;
-    uint8_t rtc_h;
-    uint8_t rtc_dl;
-    uint8_t rtc_dh;
+    bool rumble;
+    uint8_t *ram_data;
+    uint32_t ram_size;
+    uint32_t ram_banks;
+    bool ram_enabled;
+    uint8_t *rom_map[4];
+    uint8_t *ram_read_map[2];
+    uint8_t *ram_write_map[2];
+    uint16_t rom_bank_value;
+    uint16_t rom_bank_high;
+    uint8_t ram_bank_value;
+    uint8_t banking_mode;
     bool rtc_selected;
     uint8_t rtc_reg;
-    uint8_t rtc_latch;
-    time_t rtc_last_time;
-    uint8_t mbc6_rom_bank1;
-    uint8_t mbc6_rom_bank2;
-    uint8_t mbc6_ram_bank1;
-    uint8_t mbc6_ram_bank2;
-    uint8_t mbc7_state;
-    uint16_t mbc7_buffer;
-    uint16_t mbc7_output;
-    bool mbc7_cs;
-    bool mbc7_clk;
-    bool mbc7_prev_clk;
+    bool m161_locked;
+    mbc3_rtc_t rtc;
+    mbc6_state_t mbc6;
+    mbc7_state_t mbc7;
+    mmm01_state_t mmm01;
+    huc3_state_t huc3;
+    camera_state_t camera;
 } cartridge_context_t;
 
 typedef struct {
@@ -354,6 +525,9 @@ typedef struct {
     uint8_t opcode;
     instruction_t *inst;
     bool halted;
+    bool halt_bug;
+    bool stopped;
+    bool locked;
     bool stepping;
     bool int_master_enabled;
     bool enabling_ime;
@@ -379,11 +553,14 @@ typedef enum {
     IT_JOYPAD = 16
 } interrupt_t;
 
+typedef enum { TIMA_COUNTING, TIMA_OVERFLOW, TIMA_RELOADING } tima_state_t;
+
 typedef struct {
     uint16_t div;
     uint8_t tima;
     uint8_t tma;
     uint8_t tac;
+    tima_state_t state;
 } timer_context_t;
 
 typedef struct {
@@ -393,45 +570,33 @@ typedef struct {
     uint8_t attributes;
 } oam_entry_t;
 
-typedef struct oam_line_entry {
+typedef struct {
     oam_entry_t entry;
-    struct oam_line_entry *next;
+    uint8_t index;
+    uint8_t data_lo;
+    uint8_t data_hi;
 } oam_line_entry_t;
 
-typedef enum {
-    FS_TILE,
-    FS_DATA0,
-    FS_DATA1,
-    FS_IDLE,
-    FS_PUSH,
-} fetch_state_t;
-
-typedef struct fifo_entry fifo_entry_t;
-
-typedef struct fifo_entry {
-    fifo_entry_t *next;
-    uint32_t value;
-} fifo_entry_t;
-
 typedef struct {
-    fifo_entry_t *head;
-    fifo_entry_t *tail;
-    uint32_t size;
-} fifo_t;
-
-typedef struct {
-    fetch_state_t state;
-    fifo_t pixel_fifo;
-    uint8_t line_x;
-    uint8_t pushed_x;
-    uint8_t fetch_x;
-    uint8_t bg_fetch_data[4];
-    uint8_t fetch_entry_data[6];
-    uint8_t map_y;
-    uint8_t map_x;
-    uint8_t tile_y;
-    uint8_t fifo_x;
+    uint8_t render_x;
+    uint8_t bg_index[X_RES];
+    uint8_t bg_attrs[X_RES];
+    uint8_t obj_index[X_RES];
+    uint8_t obj_attrs[X_RES];
 } fifo_context_t;
+
+typedef enum {
+    PHASE_OAM_SCAN,
+    PHASE_VRAM_BLOCK,
+    PHASE_TRANSFER,
+    PHASE_HBLANK,
+    PHASE_LY_INCREMENT,
+    PHASE_LINE_END,
+    PHASE_VBLANK_START,
+    PHASE_VBLANK_LINE,
+    PHASE_LY_ZERO,
+    PHASE_LY_ZERO_COMPARE,
+} ppu_phase_t;
 
 typedef struct {
     oam_entry_t oam_ram[OAM_ENTRIES];
@@ -439,16 +604,26 @@ typedef struct {
     uint8_t vram_bank;
     fifo_context_t *pixel_context;
     uint8_t line_sprite_count;
-    oam_line_entry_t *line_sprites;
+    uint8_t scan_index;
     oam_line_entry_t line_entry_array[MAX_SPRITES];
-    uint8_t fetch_entry_count;
-    oam_entry_t fetched_entries[3];
     uint8_t window_line;
-    uint32_t current_frame;
-    uint32_t line_ticks;
-    uint32_t *video_buffer;
-    bool window_triggered;
+    bool window_y_triggered;
     bool window_rendered_this_line;
+    atomic_uint current_frame;
+    int32_t line_ticks;
+    int32_t next_event;
+    ppu_phase_t phase;
+    bool oam_read_blocked;
+    bool oam_write_blocked;
+    bool vram_read_blocked;
+    bool vram_write_blocked;
+    uint32_t transfer_ticks;
+    uint16_t line;
+    bool stat_line;
+    bool first_frame;
+    uint32_t *video_buffer;
+    uint32_t *back_buffer;
+    uint32_t *frame_buffers[2];
 } ppu_context_t;
 
 typedef struct {
@@ -456,11 +631,14 @@ typedef struct {
     uint8_t byte;
     uint8_t value;
     uint8_t start_delay;
+    bool restart;
+    uint8_t restart_value;
 } dma_context_t;
 
 typedef struct {
     bool active;
     bool hblank_mode;
+    bool pending;
     uint16_t source;
     uint16_t dest;
     uint16_t remaining;
@@ -498,6 +676,7 @@ typedef struct {
     uint8_t undoc_ff73;
     uint8_t undoc_ff74;
     uint8_t undoc_ff75;
+    uint8_t infrared;
 } lcd_context_t;
 
 typedef enum {
@@ -515,102 +694,82 @@ typedef enum {
 } stat_src_t;
 
 typedef struct {
-    bool start : 1;
-    bool select : 1;
-    bool a : 1;
-    bool b : 1;
-    bool up : 1;
-    bool down : 1;
-    bool left : 1;
-    bool right : 1;
-} joypad_state_t;
-
-typedef struct {
     bool button_selected;
     bool direction_selected;
-    joypad_state_t state;
+    atomic_uchar buttons;
+    uint8_t previous_lines;
 } joypad_context_t;
 
 typedef struct {
+    uint8_t data;
+    uint8_t control;
+    uint8_t bits_remaining;
+    uint16_t previous_div;
+    char log[SERIAL_LOG_SIZE];
+    uint32_t log_size;
+} serial_context_t;
+
+typedef struct {
     bool enabled;
+    bool dac_enabled;
+    bool length_enabled;
+    uint16_t length_counter;
+    uint16_t frequency;
+    int32_t timer;
     uint8_t volume;
-    uint8_t freq_lo;
-    uint8_t freq_hi;
-    uint8_t sweep_time;
-    uint8_t sweep_direction;
+    uint8_t envelope_initial;
+    uint8_t envelope_period;
+    uint8_t envelope_timer;
+    bool envelope_add;
+    uint8_t duty;
+    uint8_t duty_position;
+    bool sweep_enabled;
+    bool sweep_negate;
+    bool sweep_negated;
+    uint8_t sweep_period;
     uint8_t sweep_shift;
-    uint8_t wave_duty;
-    uint8_t length;
-    uint8_t initial_volume;
-    uint8_t envelope_direction;
-    uint8_t envelope_sweep;
-    uint32_t frequency;
-    uint32_t period;
-    uint32_t duty_cycle;
-    uint16_t lfsr;
-    float_t time_counter;
-    float_t envelope_counter;
-    float_t sweep_counter;
-} sound_channel1_t;
-
-typedef struct {
-    bool enabled;
-    uint8_t volume;
-    uint8_t freq_lo;
-    uint8_t freq_hi;
-    uint8_t wave_duty;
-    uint8_t length;
-    uint8_t initial_volume;
-    uint8_t envelope_direction;
-    uint8_t envelope_sweep;
-    uint32_t frequency;
-    uint32_t period;
-    uint32_t duty_cycle;
-    float_t time_counter;
-    float_t envelope_counter;
-} sound_channel2_t;
-
-typedef struct {
-    bool enabled;
-    uint8_t volume;
-    uint8_t freq_lo;
-    uint8_t freq_hi;
-    uint8_t length;
+    uint8_t sweep_timer;
+    uint16_t sweep_shadow;
     uint8_t output_level;
-    uint32_t frequency;
-    uint32_t period;
-    float_t time_counter;
-    uint8_t wave_pattern[32];
-} sound_channel3_t;
+    uint8_t wave_position;
+    uint8_t wave_sample;
+    bool wave_just_read;
+    uint16_t lfsr;
+    uint8_t clock_shift;
+    uint8_t divisor_code;
+    bool width_mode;
+} sound_channel_t;
 
 typedef struct {
-    bool enabled;
-    uint8_t volume;
-    uint8_t length;
-    uint8_t initial_volume;
-    uint8_t envelope_direction;
-    uint8_t envelope_sweep;
-    uint8_t shift_clock_freq;
-    uint8_t counter_width;
-    uint8_t dividing_ratio;
-    uint32_t period;
-    uint16_t lfsr;
-    float_t time_counter;
-    float_t envelope_counter;
-} sound_channel4_t;
+    int16_t frames[AUDIO_RING_FRAMES * AUDIO_CHANNELS];
+    atomic_uint read_index;
+    atomic_uint write_index;
+    int16_t last_left;
+    int16_t last_right;
+} audio_ring_t;
 
 typedef struct {
     bool initialized;
     SDL_AudioDeviceID device;
     SDL_AudioSpec spec;
-    uint8_t master_volume;
-    uint8_t channel_control;
-    uint8_t output_select;
-    uint8_t master_on;
-    sound_channel1_t channel1;
-    sound_channel2_t channel2;
-    sound_channel3_t channel3;
-    sound_channel4_t channel4;
+    uint8_t registers[0x30];
+    uint8_t wave_ram[16];
+    bool power;
+    uint8_t sequencer_step;
+    sound_channel_t channels[4];
+    bool mix_dirty;
+    float mix_left;
+    float mix_right;
+    double sample_counter;
+    double ticks_per_sample;
+    float left_accumulator;
+    float right_accumulator;
+    uint32_t accumulated_ticks;
+    float left_capacitor;
+    float right_capacitor;
+    float hpf_charge;
+    _Atomic float output_volume;
+    audio_ring_t ring;
 } sound_context_t;
 
 #endif

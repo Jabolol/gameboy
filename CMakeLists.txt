@@ -41,9 +41,6 @@ set(WASM_FLAGS
     -s MALLOC=emmalloc
     -s MAX_WEBGL_VERSION=2
     -s GL_UNSAFE_OPTS=1
-    -s LZ4=1
-    -s AUDIO_WORKLET=1
-    -s WASM_WORKERS=1
     -s ENVIRONMENT=worker
     -s ELIMINATE_DUPLICATE_FUNCTIONS=1
     -o www/static/gameboy.js
@@ -53,21 +50,20 @@ set(WASM_FLAGS
     -s ASYNCIFY
     -s ALLOW_MEMORY_GROWTH=1
     -s SHARED_MEMORY=1
-    -s WASM_BIGINT=1
-    -s EXPORTED_FUNCTIONS=["_gameboy_create","_gameboy_start","_gameboy_destroy"]
-    -s EXPORTED_RUNTIME_METHODS=["ccall","cwrap"]
-    --closure 1
+    -s FORCE_FILESYSTEM=1
+    -lidbfs.js
+    -s EXPORTED_FUNCTIONS=["_gameboy_create","_gameboy_start","_gameboy_destroy","_gameboy_button","_gameboy_request","_gameboy_configure","_gameboy_rumble","_gameboy_color"]
+    -s EXPORTED_RUNTIME_METHODS=["ccall","cwrap","FS"]
     -flto
 )
 
-if(EXISTS "${PROJECT_SOURCE_DIR}/ROMs")
-    list(APPEND WASM_FLAGS --preload-file ROMs@/ROMs)
-else()
+if(NOT EXISTS "${PROJECT_SOURCE_DIR}/ROMs")
     message(WARNING "ROMs directory not found, no runnable ROMs will be available")
 endif()
 
 add_custom_target(wasm
     COMMAND ${EMSCRIPTEN_PATH}/emcc ${SRC} ${WASM_FLAGS}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ROMs www/static/roms
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
 
