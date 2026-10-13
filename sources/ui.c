@@ -91,9 +91,14 @@ static void handle_events(UIClass *self)
                 break;
             case SDL_KEYDOWN:
             case SDL_KEYUP: {
+                SDL_Scancode scancode = event.key.keysym.scancode;
+                SDL_Keycode code = (scancode >= SDL_SCANCODE_RIGHT
+                                       && scancode <= SDL_SCANCODE_UP)
+                    ? SDL_SCANCODE_TO_KEYCODE(scancode)
+                    : event.key.keysym.sym;
+
                 if (!event.key.repeat) {
-                    self->on_key(
-                        self, event.type == SDL_KEYDOWN, event.key.keysym.sym);
+                    self->on_key(self, event.type == SDL_KEYDOWN, code);
                 }
                 break;
             }

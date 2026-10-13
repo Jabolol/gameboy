@@ -22,16 +22,20 @@ declare global {
 const UNLOCK_EVENTS = ["pointerup", "touchend", "keydown", "click"];
 
 function resumeOnInteraction(audioContext: AudioContext) {
+  const disarm = () => {
+    for (const type of UNLOCK_EVENTS) {
+      self.removeEventListener(type, resume, true);
+    }
+  };
+
   const resume = () => {
     audioContext.resume().then(() => {
-      if (audioContext.state !== "running") return;
-      for (const type of UNLOCK_EVENTS) {
-        self.removeEventListener(type, resume, true);
-      }
-    });
+      if (audioContext.state === "running") disarm();
+    }).catch(() => {});
   };
 
   const arm = () => {
+    if (audioContext.state === "closed") return disarm();
     if (audioContext.state === "running") return;
     for (const type of UNLOCK_EVENTS) {
       self.addEventListener(type, resume, true);
